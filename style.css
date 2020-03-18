@@ -1,0 +1,32 @@
+body {
+  font-family: sans-serif;
+}
+
+/* Make content area fill the entire browser window */
+html,
+.fullscreen {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  background-color: Green;
+}
+
+img
+{
+width:12%;
+margin:1px;
+height:auto;
+max-height: 100%;
+}
+
+#joueurbas{
+   position:absolute;
+   padding:3%;
+   bottom:0;
+   left:10%;
+   right:10%;
+   height: 30%;
+   background-color: DarkGreen;
+   border: 3px solid black;
+}
