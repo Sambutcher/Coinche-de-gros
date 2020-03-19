@@ -89,33 +89,26 @@ function Donne(donneur){
 var jeu=new Jeu();
 var table=new Table("Filou","Cochonou","Shokooh","Sam");
 
-function afficherMain(noJoueur){
-  var affiche="";
-  var main=table["joueur"+noJoueur].main;
-  for (let i=0;i<main.length;i++){
-    affiche=affiche+'<img src="/img/'+main[i].Couleur+'_'+main[i].Valeur+'.png" id="'+main[i].Couleur+'_'+main[i].Valeur+'"/>';
-  }
-  document.getElementById('joueurbas').innerHTML=affiche;
-}
-
 function afficher(){
   for (let noJoueur=0;noJoueur<4;noJoueur++){
     var affiche=table['joueur'+noJoueur].nom+"<BR>";//affihce le nom du joueur
     var main=table["joueur"+noJoueur].main;
     //affiche la main du joueur
     for (let i=0;i<main.length;i++){
-      affiche=affiche+'<img src="/img/'+main[i].Couleur+'_'+main[i].Valeur+'.png" class="carte" id="'+noJoueur+'_'+i+'"/>';
+      affiche=affiche+'<img src="/img/'+main[i].Couleur+'_'+main[i].Valeur+'.png" class="carte" onclick="jouerCarte('+i+')"/>';
     }
     document.getElementById('joueur'+noJoueur).innerHTML=affiche;
   }
 
-
+  //affiche le pli en cours
   for (let i=0;i<donne.pliEnCours.length;i++){
     var carte=donne.pliEnCours[i];
     var affiche='<img src="/img/'+carte.Couleur+'_'+carte.Valeur+'.png" class="carte"/>';
-    document.getElementById('devantJ'+((4+donne.joueurActif-i)%4)).innerHTML=affiche;
+    document.getElementById('devantJ'+((donne.joueurActif-donne.pliEnCours.length+i+4)%4)).innerHTML=affiche;
   }
+  document.getElementById('joueur'+(donne.joueurActif+3)%4).style.backgroundColor="";
   document.getElementById('joueur'+donne.joueurActif).style.backgroundColor="Blue";
+
 }
 
 table.distribuer(jeu);
@@ -127,10 +120,7 @@ function jouerCarte(noCarte){
   donne.pliEnCours.push(table["joueur"+donne.joueurActif].main[noCarte]);//met la carte dans le pli
   table["joueur"+donne.joueurActif].main.splice(noCarte,1);//retire la carte de la main
   donne.joueurActif=(donne.joueurActif+1)%4;
+  afficher();
 }
 
-jouerCarte(2);
-jouerCarte(0);
-jouerCarte(2);
-jouerCarte(0);
 afficher();
