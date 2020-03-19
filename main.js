@@ -54,12 +54,36 @@ function Table(nom1,nom2,nom3,nom4){
 
   }
 
+  function tourner(){
+    this.donneur=(this.donneur+1)%4;
+  }
+
   this.joueur0= new Joueur(nom1);
   this.joueur1= new Joueur(nom2);
   this.joueur2= new Joueur(nom3);
   this.joueur3= new Joueur(nom4);
   this.donneur= 0;
   this.distribuer=distribuer;
+  this.tourner=tourner;
+}
+
+
+//constructeur d'une donne. Elle est composé des plis qui vident les mains de la table avec un donneur fixé
+function Donne(donneur){
+
+  function ramasser(joueur){
+    this["plisFaitsJ"+joueur].push(this.pliEnCours);
+    this.pliEnCours=[];
+    this.joueurActif=joueur;//donne la main à celui qui ramasse
+  }
+
+  this.pliEnCours=[];
+  this.plisFaitsJ0=[];
+  this.plisFaitsJ1=[];
+  this.plisFaitsJ2=[];
+  this.plisFaitsJ3=[];
+  this.joueurActif=(donneur+1)%4;
+  this.ramasser=ramasser;
 }
 
 var jeu=new Jeu();
@@ -69,11 +93,26 @@ function afficherMain(noJoueur){
   var affiche="";
   var main=table["joueur"+noJoueur].main;
   for (let i=0;i<main.length;i++){
-    affiche=affiche+'<img src="/img/'+main[i].Couleur+'_'+main[i].Valeur+'.png"/>';
+    affiche=affiche+'<img src="/img/'+main[i].Couleur+'_'+main[i].Valeur+'.png" id="'+main[i].Couleur+'_'+main[i].Valeur+'"/>';
   }
-  console.log(affiche);
   document.getElementById('joueurbas').innerHTML=affiche;
 }
 
 table.distribuer(jeu);
+
+var donne=new Donne(table.donneur);
+
+//jeu d'une carte, modification de la donne et de la table
+function jouerCarte(noCarte){
+  donne.pliEnCours.push(table["joueur"+donne.joueurActif].main[noCarte]);//met la carte dans le pli
+  table["joueur"+donne.joueurActif].main.splice(noCarte,1);//retire la carte de la main
+  donne.joueurActif=(donne.joueurActif+1)%4;
+}
+
+
+jouerCarte(0);
+jouerCarte(0);
+jouerCarte(0);
+jouerCarte(0);
+donne.ramasser(2);
 afficherMain(0);
