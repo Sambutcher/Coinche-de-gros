@@ -98,6 +98,26 @@ function afficherMain(noJoueur){
   document.getElementById('joueurbas').innerHTML=affiche;
 }
 
+function afficher(){
+  for (let noJoueur=0;noJoueur<4;noJoueur++){
+    var affiche=table['joueur'+noJoueur].nom+"<BR>";//affihce le nom du joueur
+    var main=table["joueur"+noJoueur].main;
+    //affiche la main du joueur
+    for (let i=0;i<main.length;i++){
+      affiche=affiche+'<img src="/img/'+main[i].Couleur+'_'+main[i].Valeur+'.png" class="carte" id="'+noJoueur+'_'+i+'"/>';
+    }
+    document.getElementById('joueur'+noJoueur).innerHTML=affiche;
+  }
+
+
+  for (let i=0;i<donne.pliEnCours.length;i++){
+    var carte=donne.pliEnCours[i];
+    var affiche='<img src="/img/'+carte.Couleur+'_'+carte.Valeur+'.png" class="carte"/>';
+    document.getElementById('devantJ'+((4+donne.joueurActif-i)%4)).innerHTML=affiche;
+  }
+  document.getElementById('joueur'+donne.joueurActif).style.backgroundColor="Blue";
+}
+
 table.distribuer(jeu);
 
 var donne=new Donne(table.donneur);
@@ -109,10 +129,8 @@ function jouerCarte(noCarte){
   donne.joueurActif=(donne.joueurActif+1)%4;
 }
 
-
+jouerCarte(2);
 jouerCarte(0);
+jouerCarte(2);
 jouerCarte(0);
-jouerCarte(0);
-jouerCarte(0);
-donne.ramasser(2);
-afficherMain(0);
+afficher();
