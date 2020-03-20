@@ -1,34 +1,41 @@
-var http = require('http');
-var fs = require('fs');
 
-// Chargement du fichier index.html affiché au client
-var server = http.createServer(function(req, res) {
-    fs.readFile('./index.html', 'utf-8', function(error, content) {
-        res.writeHead(200, {"Content-Type": "text/html"});
-        res.end(content);
-    });
+//init du serveur http et du socket
+var express = require('express');
+var app = express();
+var http = require('http').createServer(app);
+var io = require('socket.io')(http);
+
+app.use(express.static(__dirname + '/public')); //sert les fichiers clients dans le dossier "public"
+
+var numUsers=0;
+
+//connection d'un client sur le socket
+io.on('connection', function(socket){
+
+  var addedUser=false;
+
+  // when the client emits 'add user', this listens and executes
+  socket.on('add user', (username) => {
+    if (addedUser) return;
+
+    // we store the username in the socket session for this client
+    socket.username = username;
+    ++numUsers;
+    addedUser = true;
+    console.log("Connection: "+socket.username);
+  });
+
+ // when the user disconnects.. perform this
+  socket.on('disconnect', () => {
+    if (addedUser) {
+      --numUsers;
+      console.log("Déconnection: "+socket.username);
+    }
+  });
 });
 
-// Chargement de socket.io
-var io = require('socket.io').listen(server);
 
-io.sockets.on('connection', function (socket, pseudo) {
-    // Quand un client se connecte, on lui envoie un message
-    socket.emit('message', 'Vous êtes bien connecté !');
-    // On signale aux autres clients qu'il y a un nouveau venu
-    socket.broadcast.emit('message', 'Un autre client vient de se connecter ! ');
-
-    // Dès qu'on nous donne un pseudo, on le stocke en variable de session
-    socket.on('petit_nouveau', function(pseudo) {
-        socket.pseudo = pseudo;
-    });
-
-    // Dès qu'on reçoit un "message" (clic sur le bouton), on le note dans la console
-    socket.on('message', function (message) {
-        // On récupère le pseudo de celui qui a cliqué dans les variables de session
-        console.log(socket.pseudo + ' me parle ! Il me dit : ' + message);
-    });
+//lancement du serveur sur le port 3000
+http.listen(3000, function(){
+  console.log('listening on *:3000');
 });
-
-
-server.listen(8080);

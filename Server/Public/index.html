@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Belote</title>
+
+  </head>
+
+  <body>
+    <ul class="pages">
+
+      <li id="loginpage">
+        <div class="form">
+          <h3 class="title">Pseudo?</h3>
+          <input id="usernameInput" type="text" maxlength="14" />
+          <input type="button" id="Entrer" value="OK" />
+        </div>
+      </li>
+
+      <li id="closepage" style="display:none">
+        Salle pleine!
+      </li>
+
+      <li id="mainpage" style="display:none">
+        Salle de jeu!
+      </li>
+
+    </ul>
+
+    <script src="https://code.jquery.com/jquery-1.10.2.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.0.3/socket.io.js"></script>
+    <script src="/main.js"></script>
+
+
+  </body>
+</html>
