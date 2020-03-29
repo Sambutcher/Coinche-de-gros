@@ -1,4 +1,3 @@
-
 //init du serveur http et du socket (nécessite d'installer express et socket sur le serveur node)
 var express = require('express');
 var app = express();
@@ -7,11 +6,13 @@ var io = require('socket.io')(http);
 
 app.use(express.static(__dirname + '/public')); //sert les fichiers clients dans le dossier "public"
 
-var numUsers=0;//nonmbre dans la salle d'attente
+var numUsers=0;//nombre dans la salle d'attente
 var salle=["","","",""];//salle de jeu
-var jeu;
-var donne;
-var pli=[0,0,0,0];//pli en cours
+var jeu;//tas de carte
+var donne; //suivi de la donne en cours
+var pli=[-1,-1,-1,-1];//pli en cours: n0 de carte dans la main du joueur
+const couleurs=["spade","heart","diamond","club"];
+const valeurs=["1","king","queen","jack","10","9","8","7"];
 
 //***evenements du serveur***
 
@@ -68,12 +69,12 @@ io.on('connection', function(socket){
     //TODO:on annule la donne
   })
 
-//Un joueur a joué une carte
+  //Un joueur a joué une carte
   socket.on('cartejouee',(carte)=>{
-    socket.broadcast.emit('carteposee',carte,socket.nojoueur);//on previent les autres qu'une carte a été posée
+    socket.broadcast.emit('carteposee',donne['main'+socket.nojoueur][carte],socket.nojoueur);//on previent les autres qu'une carte a été posée
     pli[socket.nojoueur]=carte;
-    if (pli.every(e=>e!=0)){ //on a remplit le pli
-      io.emit('turamasses',pli,donne.ramasseur(pli,donne.alamain,donne.contrat));
+    if (pli.every(e=>e!=(-1))){ //on a remplit le pli
+      io.emit('turamasses',[donne.main0[pli[0]],donne.main1[pli[1]],donne.main2[pli[2]],donne.main3[pli[3]]],donne.ramasseur(pli));
     } else {
       pli[socket.nojoueur]=carte;
       io.emit('atoidejouer',(socket.nojoueur+1)%4);
@@ -82,22 +83,25 @@ io.on('connection', function(socket){
 
 //un joueur a pris le pli
   socket.on('plireleve',()=>{
-    console.log("pli relevé");
+    socket.broadcast.emit('relevezpli');
+    donne.ramasser(pli);
+    console.log(donne.plis0,donne.plis1);
+    pli=[-1,-1,-1,-1];
+    if (donne.main0.length==0){
+      //TODO: fin de donneur
+      console.log("fin de donne");
+    } else {
+      io.emit('atoidejouer',donne.alamain);
+    }
   })
 
 });
 
-
 //lancement du serveur sur le port 3000
-http.listen(3000, function(){
+http.listen(3000);
 
-});
 
 //***Routines du jeu***
-
-//caractéristiques de cartes
-const couleurs=["spade","heart","diamond","club"];
-const valeurs=["1","king","queen","jack","10","9","8","7"];
 
 
 //constructeur tas de cartes mélangé et méthode de coupe
@@ -154,45 +158,47 @@ function Donne(salle,donneur){
     this.alamain=(this.donneur+1)%4;
   }
   //Calcul le ramasseur d'un pli -> pour fonction ramasser
-  function ramasseur(pli,noOuvreur,contrat){
+  function ramasseur(pli){
+    var noOuvreur=this.alamain;
+    var contrat=this.contrat;
+    var tab=[this.main0[pli[0]],this.main1[pli[1]],this.main2[pli[2]],this.main3[pli[3]]];
     const ordreCouleur=["7","8","9","jack","queen","king","10","1"];
     const ordreAtout=["7","8","queen","king","10","1","9","jack"];
     atout=contrat[1];
-    couleurDemande=pli[noOuvreur].couleur;
+    couleurDemande=tab[noOuvreur].couleur;
     score=[0,0,0,0];
     for (i=0;i<4;i++){
       switch (atout=="SA"||atout=="TA"){
         case "SA":
-          if (pli[i].couleur==couleurDemande){
-            score[i]=1+ordreCouleur.indexOf(pli[i].valeur);
+          if (tab[i].couleur==couleurDemande){
+            score[i]=1+ordreCouleur.indexOf(tab[i].valeur);
           }
         break;
         case "TA":
-        if (pli[i].couleur==couleurDemande){
-          score[i]=1+ordreAtout.indexOf(pli[i].valeur);
+        if (tab[i].couleur==couleurDemande){
+          score[i]=1+ordreAtout.indexOf(tab[i].valeur);
         }
         break;
         default:
-          switch (pli[i].couleur){
+          switch (tab[i].couleur){
           case atout:
-            score[i]=9+ordreAtout.indexOf(pli[i].valeur);
+            score[i]=9+ordreAtout.indexOf(tab[i].valeur);
             break;
           case couleurDemande:
-            score[i]=1+ordreCouleur.indexOf(pli[i].valeur);
+            score[i]=1+ordreCouleur.indexOf(tab[i].valeur);
             break;
         }
       }
     }
     return score.indexOf(Math.max(...score));//retourne l'indice du plus grand
   }
-  //ramasser un pli (no de carte de chaque main dans un tableau de 4 indices, on vide la main et on remplit le pli pour le ramasseur)
-  function ramasser(tab){
-    ram=ramasseur([this.main0[tab[0]],this.main1[tab[1]],this.main2[tab[2]],this.main3[tab[3]]],this.alamain,this.contrat);
+  //ramasser un pli (no de carte de chaque main dans un tableau de 4 indices,  on remplit le pli pour le ramasseur)
+  function ramasser(pli){
+    ram=this.ramasseur(pli);
     for (i=0;i<4;i++){
-      carte=this["main"+i].splice(tab[i],1); //supprime l'élément tab(i) de la main i
-      this["plis"+(ram)%2].push(carte[0]); //met l'élément supprimé dans le pli
+      this["plis"+(ram)%2].push(this['main'+i][pli[i]]); //range le pli
     }
-    this.alamain=ram;
+    this.alamain=ram;//on donne la main au preneur
   }
   //définition des propriétés
   this.main0 = [];
@@ -203,10 +209,10 @@ function Donne(salle,donneur){
   this.plis1 = [];//plis de l'équipe 1/3
   this.contrat = ["","","",-1];//score, couleur, coinche, numéro du preneur
   this.donneur = donneur;
-  this.alamain = (donneur+1)%4;//dans le pli seulement
+  this.alamain = (donneur+1)%4;//dans le pli en cours
   this.distribuer = distribuer;
   this.tourner = tourner;//donneur suivant
-  this.ramasseur=ramasseur;
+  this.ramasseur = ramasseur;
   this.ramasser = ramasser;//prend un tableau avec les 4 indices des cartes jouées
 }
 

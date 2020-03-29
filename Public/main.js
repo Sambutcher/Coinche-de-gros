@@ -6,7 +6,7 @@ var $mainPage = document.getElementById('mainpage');// The main page
 var $annoncesPage = document.getElementById('annoncespage');// The main page
 const couleurs=["spade","heart","diamond","club"];
 const valeurs=["1","king","queen","jack","10","9","8","7"];
-var noJoueur=(-1);//numéro de joueur
+var nojoueur=(-1);//numéro de joueur
 var main;//main du joueur
 var table;//table en cours
 var socket = io();//connection au socket
@@ -16,17 +16,17 @@ for (let i=0;i<4;i++){
   document.getElementById('Entrer'+i).addEventListener('click',()=>{
     username = document.getElementById('joueur'+i).value;
     if (username==""){return};
-    noJoueur=i;
+    nojoueur=i;
     $loginPage.style.display="none";
     $mainPage.style.display="block";
-    socket.emit('add user', username, noJoueur);
+    socket.emit('add user', username, nojoueur);
   }
 )}
 
 //Evenemnts de choix du contrat
 document.getElementById('Jeprends').addEventListener('click',()=>{
   var radioCouleur=document.getElementsByName('couleurcontrat');
-  var contrat=[document.getElementById('valeurcontrat').value,"",document.getElementById('coinche').value,noJoueur];
+  var contrat=[document.getElementById('valeurcontrat').value,"",document.getElementById('coinche').value,nojoueur];
   for (let i=0;i<radioCouleur.length;i++){
     if (radioCouleur[i].checked){contrat[1]=radioCouleur[i].value};
   }
@@ -60,17 +60,24 @@ socket.on('MAJsalle',(salle)=>{
     }
   };
   //MAJ de la Table
-  if (noJoueur!=(-1)){
-    if (salle[(noJoueur+1)%4]!="") {jGauche.set({text: salle[(noJoueur+1)%4]})};
-    if (salle[(noJoueur+2)%4]!="") {jFace.set({text: salle[(noJoueur+2)%4]})};
-    if (salle[(noJoueur+3)%4]!="") {jDroite.set({text: salle[(noJoueur+3)%4]})};
+  if (nojoueur!=(-1)){
+    if (salle[(nojoueur+1)%4]!="") {jGauche.set({text: salle[(nojoueur+1)%4]})};
+    if (salle[(nojoueur+2)%4]!="") {jFace.set({text: salle[(nojoueur+2)%4]})};
+    if (salle[(nojoueur+3)%4]!="") {jDroite.set({text: salle[(nojoueur+3)%4]})};
   };
   canvas.renderAll();
 });
 
 //Lancement de la partie
 socket.on('debutDePartie',()=>{
-  afficherMain();
+  socket.emit('pingMain', (data)=>{
+    main=data;
+    for (let i=0;i<main.length;i++){
+        var carte=main[i].couleur+"_"+main[i].valeur;
+        imagesCartes[carte].set({left:100+i*90,top:540,evented:true,id:i});
+        canvas.add(imagesCartes[carte]);
+      }
+  });
   $annoncesPage.style.display="block";
 });
 
@@ -81,7 +88,7 @@ socket.on('atoidejouer',(data)=>{
   jGauche.set({textBackgroundColor:'transparent'});
   jFace.set({textBackgroundColor:'transparent'});
   jDroite.set({textBackgroundColor:'transparent'});
-  if (data==noJoueur){
+  if (data==nojoueur){
     sousmain.set({fill:'blue'});
     canvas.forEachObject((object)=>{//rend les cartes bougeables sur le tapis
       object.off('moving',zoneSousMain);
@@ -89,29 +96,27 @@ socket.on('atoidejouer',(data)=>{
     });
   } else {
     sousmain.set({fill:'green'});
-    if (data==(noJoueur+1)%4) {jGauche.set({textBackgroundColor:'blue'})};// on met en évidence celui qui a la main
-    if (data==(noJoueur+2)%4) {jFace.set({textBackgroundColor:'blue'})};
-    if (data==(noJoueur+3)%4) {jDroite.set({textBackgroundColor:'blue'})};
+    if (data==(nojoueur+1)%4) {jGauche.set({textBackgroundColor:'blue'})};// on met en évidence celui qui a la main
+    if (data==(nojoueur+2)%4) {jFace.set({textBackgroundColor:'blue'})};
+    if (data==(nojoueur+3)%4) {jDroite.set({textBackgroundColor:'blue'})};
   }
   canvas.renderAll();
 })
 
 //on affiche la carte posée par un autre joueur
 socket.on('carteposee',(carte,alamain)=>{
-  imageCarte=imagesCartes[carte.couleur+"_"+carte.valeur];
-  if (alamain==(noJoueur+1)%4) {
-    imageCarte.set({left:200,top:280,angle:90});
-    canvas.add(imageCarte);
+  if (alamain==(nojoueur+1)%4) {
+    imagesCartes[carte.couleur+"_"+carte.valeur].set({left:200,top:280,angle:90});
+    canvas.add(imagesCartes[carte.couleur+"_"+carte.valeur]);
   };
-  if (alamain==(noJoueur+2)%4) {
-    imageCarte.set({left:400,top:125});
-    canvas.add(imageCarte);
+  if (alamain==(nojoueur+2)%4) {
+    imagesCartes[carte.couleur+"_"+carte.valeur].set({left:400,top:125});
+    canvas.add(imagesCartes[carte.couleur+"_"+carte.valeur]);
   };
-  if (alamain==(noJoueur+3)%4) {
-    imageCarte.set({left:600,top:280,angle:90});
-    canvas.add(imageCarte);
+  if (alamain==(nojoueur+3)%4) {
+    imagesCartes[carte.couleur+"_"+carte.valeur].set({left:600,top:280,angle:90});
+    canvas.add(imagesCartes[carte.couleur+"_"+carte.valeur]);
   };
-  canvas.renderAll();
 })
 
 //un pli est fait et doit être ramassé
@@ -121,24 +126,36 @@ socket.on('turamasses',(pli, no)=>{
   jDroite.set({textBackgroundColor:'transparent'});
   sousmain.set({fill:'green'});
   for (i=0;i<4;i++){
-    imagesCartes[pli[i].couleur+"_"+pli[i].valeur].set({left:360+20*i,top:400,angle:0});
+    //imagesCartes[pli[i].couleur+"_"+pli[i].valeur].set({left:360+20*i,top:400,angle:0});
+  /*  if (no==nojoueur){imagesCartes[pli[i].couleur+"_"+pli[i].valeur].animate({left:360+(20*i),top:400,angle:0},{duration: 1000, onChange: canvas.renderAll.bind(canvas)})};
+    if (no==(nojoueur+1)%4) {imagesCartes[pli[i].couleur+"_"+pli[i].valeur].animate({left:200,top:260+(20*i),angle:90},{duration: 1000, onChange: canvas.renderAll.bind(canvas)})};
+    if (no==(nojoueur+2)%4) {imagesCartes[pli[i].couleur+"_"+pli[i].valeur].animate({left:360+(20*i),top:125,angle:0},{duration: 1000, onChange: canvas.renderAll.bind(canvas)})};
+    if (no==(nojoueur+3)%4) {imagesCartes[pli[i].couleur+"_"+pli[i].valeur].animate({left:600,top:260+(20*i),angle:90},{duration: 1000, onChange: canvas.renderAll.bind(canvas)})};
+  */if (no==nojoueur){imagesCartes[pli[i].couleur+"_"+pli[i].valeur].set({left:360+(20*i),top:400,angle:0})};
+    if (no==(nojoueur+1)%4) {imagesCartes[pli[i].couleur+"_"+pli[i].valeur].set({left:200,top:260+(20*i),angle:90})};
+    if (no==(nojoueur+2)%4) {imagesCartes[pli[i].couleur+"_"+pli[i].valeur].set({left:360+(20*i),top:125,angle:0})};
+    if (no==(nojoueur+3)%4) {imagesCartes[pli[i].couleur+"_"+pli[i].valeur].set({left:600,top:260+(20*i),angle:90})};
+
   }
   imagePli=new fabric.Group([
-    imagesCartes[pli[0].couleur+"_"+pli[0].valeur],
-    imagesCartes[pli[1].couleur+"_"+pli[1].valeur],
-    imagesCartes[pli[2].couleur+"_"+pli[2].valeur],
-    imagesCartes[pli[3].couleur+"_"+pli[3].valeur],
+  imagesCartes[pli[0].couleur+"_"+pli[0].valeur],
+  imagesCartes[pli[1].couleur+"_"+pli[1].valeur],
+  imagesCartes[pli[2].couleur+"_"+pli[2].valeur],
+  imagesCartes[pli[3].couleur+"_"+pli[3].valeur],
   ],{originX:'center',originY:'center',hasControls:false,hasBorders:false,});
+  if (no!=nojoueur){imagePli.set({evented:false})};
   canvas.add(imagePli);
   for (i=0;i<4;i++){
     canvas.remove(imagesCartes[pli[i].couleur+"_"+pli[i].valeur]);
   }
-  if (no==(noJoueur+1)%4) {imagePli.set({left:200,top:280,angle:90})};
-  if (no==(noJoueur+2)%4) {imagePli.set({left:400,top:125})};
-  if (no==(noJoueur+3)%4) {imagePli.set({left:600,top:280,angle:90})};
   canvas.renderAll();
 });
 
+//le pli est ramassé par qq1, on l'efface
+socket.on('relevezpli',()=>{
+  canvas.remove(imagePli);
+  canvas.renderAll();
+});
 
 //Affichage du canvas***************************
 
@@ -186,7 +203,6 @@ for (let i=0;i<couleurs.length;i++){
         hasControls:false,
         hasBorders:false,
         evented:false,
-        id:{couleur:couleurs[i],valeur:valeurs[j]},
       });
       imagesCartes[couleurs[i]+"_"+valeurs[j]]=buf;
   }
@@ -238,17 +254,6 @@ canvas.on('mouse:up',options=>{
   }
 })
 
-//Afficher la main du joueur en cours
-function afficherMain(){
-  socket.emit('pingMain', (data)=>{
-    main=data;
-    for (let i=0;i<main.length;i++){
-        var carte=main[i].couleur+"_"+main[i].valeur;
-        imagesCartes[carte].set({left:100+i*90,top:540,evented:true});
-        canvas.add(imagesCartes[carte]);
-      }
-  });
-}
 
 
 });
