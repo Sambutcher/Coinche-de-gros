@@ -75,7 +75,7 @@ socket.on('debutDePartie',()=>{
 });
 
 //a moi de jouer
-socket.on('alamain',(data)=>{
+socket.on('atoidejouer',(data)=>{
   document.getElementById('form').reset();//on efface les données du formulaire
   $annoncesPage.style.display="none";
   jGauche.set({textBackgroundColor:'transparent'});
@@ -83,12 +83,12 @@ socket.on('alamain',(data)=>{
   jDroite.set({textBackgroundColor:'transparent'});
   if (data==noJoueur){
     sousmain.set({fill:'blue'});
-    canvas.forEachObject((object)=>{
+    canvas.forEachObject((object)=>{//rend les cartes bougeables sur le tapis
       object.off('moving',zoneSousMain);
       object.on('moving',zoneJouable);
-    });//rend les cartes bougeables sur le tapis
-    //on attend l'evenement de pose de carte
+    });
   } else {
+    sousmain.set({fill:'green'});
     if (data==(noJoueur+1)%4) {jGauche.set({textBackgroundColor:'blue'})};// on met en évidence celui qui a la main
     if (data==(noJoueur+2)%4) {jFace.set({textBackgroundColor:'blue'})};
     if (data==(noJoueur+3)%4) {jDroite.set({textBackgroundColor:'blue'})};
@@ -99,12 +99,45 @@ socket.on('alamain',(data)=>{
 //on affiche la carte posée par un autre joueur
 socket.on('carteposee',(carte,alamain)=>{
   imageCarte=imagesCartes[carte.couleur+"_"+carte.valeur];
-  if (alamain==(noJoueur+1)%4) {imageCarte.set({left:200,top:280,angle:90})};
-  if (alamain==(noJoueur+2)%4) {imageCarte.set({left:400,top:125})};
-  if (alamain==(noJoueur+3)%4) {imageCarte.set({left:600,top:280,angle:90})};
-  canvas.add(imageCarte);
+  if (alamain==(noJoueur+1)%4) {
+    imageCarte.set({left:200,top:280,angle:90});
+    canvas.add(imageCarte);
+  };
+  if (alamain==(noJoueur+2)%4) {
+    imageCarte.set({left:400,top:125});
+    canvas.add(imageCarte);
+  };
+  if (alamain==(noJoueur+3)%4) {
+    imageCarte.set({left:600,top:280,angle:90});
+    canvas.add(imageCarte);
+  };
   canvas.renderAll();
 })
+
+//un pli est fait et doit être ramassé
+socket.on('turamasses',(pli, no)=>{
+  jGauche.set({textBackgroundColor:'transparent'});
+  jFace.set({textBackgroundColor:'transparent'});
+  jDroite.set({textBackgroundColor:'transparent'});
+  sousmain.set({fill:'green'});
+  for (i=0;i<4;i++){
+    imagesCartes[pli[i].couleur+"_"+pli[i].valeur].set({left:360+20*i,top:400,angle:0});
+  }
+  imagePli=new fabric.Group([
+    imagesCartes[pli[0].couleur+"_"+pli[0].valeur],
+    imagesCartes[pli[1].couleur+"_"+pli[1].valeur],
+    imagesCartes[pli[2].couleur+"_"+pli[2].valeur],
+    imagesCartes[pli[3].couleur+"_"+pli[3].valeur],
+  ],{originX:'center',originY:'center',hasControls:false,hasBorders:false,});
+  canvas.add(imagePli);
+  for (i=0;i<4;i++){
+    canvas.remove(imagesCartes[pli[i].couleur+"_"+pli[i].valeur]);
+  }
+  if (no==(noJoueur+1)%4) {imagePli.set({left:200,top:280,angle:90})};
+  if (no==(noJoueur+2)%4) {imagePli.set({left:400,top:125})};
+  if (no==(noJoueur+3)%4) {imagePli.set({left:600,top:280,angle:90})};
+  canvas.renderAll();
+});
 
 
 //Affichage du canvas***************************
@@ -122,6 +155,7 @@ var soustable=new fabric.Rect({  width: 600, height: 400, fill: 'darkgreen', lef
 var jGauche=new fabric.Text("En attente", { left: 50, top: 280, fontSize:16 , evented:false, originX: "center", originY: "center",hoverCursor:'default'});
 var jFace=new fabric.Text("En attente", { left: 400, top: 25, fontSize:16, evented:false, originX: "center", originY: "center",hoverCursor:'default' });
 var jDroite= new fabric.Text("En attente", { left: 750, top: 280, fontSize:16, evented:false, originX: "center", originY: "center",hoverCursor:'default' });
+var imagePli;
 canvas.add(jGauche,jFace,jDroite);
 canvas.add(sousmain);
 canvas.add(soustable);
@@ -186,13 +220,20 @@ for (let i=0;i<couleurs.length;i++) {
 //Event de pose d'une carte
 canvas.on('mouse:up',options=>{
   if (options.target){
-    if (options.target.top<=450){
-      socket.emit('cartejouee',options.target.id);//on previent le serveur de la carte jouée
-      options.target.evented=false;//on ne peut plus bouger la carte jouée//TODO: ca ne marche pas!
-      canvas.forEachObject((object)=>{//on ne peut plus poser de cartes
-        object.off('moving',zoneJouable);
-        object.on('moving',zoneSousMain);
-      });
+    if (options.target.id){//on clique sur une carte
+      if (options.target.top<=450){
+        socket.emit('cartejouee',options.target.id);//on previent le serveur de la carte jouée
+        sousmain.set({fill:'transparent'});
+        options.target.evented=false;//on ne peut plus bouger la carte jouée
+        canvas.forEachObject((object)=>{//on ne peut plus poser de cartes
+          object.off('moving',zoneJouable);
+          object.on('moving',zoneSousMain);
+        });
+      }
+    } else {//c'est un groupe (imagepli)
+      socket.emit('plireleve');
+      canvas.remove(imagePli);
+      canvas.renderAll();
     }
   }
 })
@@ -208,5 +249,6 @@ function afficherMain(){
       }
   });
 }
+
 
 });

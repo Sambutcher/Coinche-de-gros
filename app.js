@@ -11,7 +11,7 @@ var numUsers=0;//nonmbre dans la salle d'attente
 var salle=["","","",""];//salle de jeu
 var jeu;
 var donne;
-var pli;
+var pli=[0,0,0,0];//pli en cours
 
 //***evenements du serveur***
 
@@ -55,14 +55,12 @@ io.on('connection', function(socket){
   //Envoi la main quand on lui demande
   socket.on('pingMain',(fn)=>{
     fn(donne["main"+socket.nojoueur]);
-    console.log("main:",socket.nojoueur,donne["main"+socket.nojoueur]);
   })
 
   //Un joueur prends
   socket.on('Jeprends',(data)=>{
     donne.contrat=data;
-    io.emit('alamain',donne.alamain);//TODO: voir le cas de la générale
-    console.log("preneur:",data);
+    io.emit('atoidejouer',donne.alamain);//TODO: voir le cas de la générale
   })
 
   //Un joueur annule
@@ -72,16 +70,27 @@ io.on('connection', function(socket){
 
 //Un joueur a joué une carte
   socket.on('cartejouee',(carte)=>{
-    console.log("carte jouée:",socket.nojoueur,carte);
-    socket.broadcast.emit('carteposee',carte,donne.alamain);//on previent les autres qu'une carte a été posée
-    //TODO: une carte vient d'être jouée
+    socket.broadcast.emit('carteposee',carte,socket.nojoueur);//on previent les autres qu'une carte a été posée
+    pli[socket.nojoueur]=carte;
+    if (pli.every(e=>e!=0)){ //on a remplit le pli
+      io.emit('turamasses',pli,donne.ramasseur(pli,donne.alamain,donne.contrat));
+    } else {
+      pli[socket.nojoueur]=carte;
+      io.emit('atoidejouer',(socket.nojoueur+1)%4);
+    }
   })
+
+//un joueur a pris le pli
+  socket.on('plireleve',()=>{
+    console.log("pli relevé");
+  })
+
 });
 
 
 //lancement du serveur sur le port 3000
 http.listen(3000, function(){
-  //console.log('listening on *:3000');
+
 });
 
 //***Routines du jeu***
@@ -194,9 +203,10 @@ function Donne(salle,donneur){
   this.plis1 = [];//plis de l'équipe 1/3
   this.contrat = ["","","",-1];//score, couleur, coinche, numéro du preneur
   this.donneur = donneur;
-  this.alamain = (donneur+1)%4;
+  this.alamain = (donneur+1)%4;//dans le pli seulement
   this.distribuer = distribuer;
   this.tourner = tourner;//donneur suivant
+  this.ramasseur=ramasseur;
   this.ramasser = ramasser;//prend un tableau avec les 4 indices des cartes jouées
 }
 
