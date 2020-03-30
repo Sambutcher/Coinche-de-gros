@@ -90,8 +90,10 @@ io.on('connection', function(socket){
     pli=[-1,-1,-1,-1];
     if (donne.plis0.length + donne.plis1.length==32){
       //TODO: fin de donne
-      if (ramasseur%2==0){donne.compte0+=10} else {donne.compte1+=10};//10 de der
-      console.log("fin de donne");
+      if (ramasseur%2==0){donne.compte[0]+=10} else {donne.compte[1]+=10};//10 de der
+      donne.MAJcompte();
+      console.log("fin de donne",donne.compte);
+      console.log(donne.plis0,donne.plis1,donne.contrat);
     } else {
       io.emit('atoidejouer',donne.alamain);
     }
@@ -154,11 +156,6 @@ function Donne(salle,donneur){
         this["main"+(this.donneur+i+1)%4].push(j[2*i+24],j[2*i+25]);
     }
   }
-  //faire tourner le donneur
-  function tourner(){
-    this.donneur=(this.donneur+1)%4;
-    this.alamain=(this.donneur+1)%4;
-  }
   //Calcul le ramasseur d'un pli -> pour fonction ramasser
   function ramasseur(pli){
     var noOuvreur=this.alamain;
@@ -206,17 +203,49 @@ function Donne(salle,donneur){
   //chercher la belote et mettre à jour le compte
   function isBelote(){
     for (let j=0;j<4;j=j+2){
-    var res=0;
-    var main=this['main'+((this.contrat[4]+j) %4)];
-    for (let i=0;i<main.length;i++){
-      if ((main[i].couleur==contrat[1])&&(main[i].valeur=='king')){res++};
-      if ((main[i].couleur==contrat[1])&&(main[i].valeur=='queen')){res++};
+      var res=0;
+      var main=this['main'+((this.contrat[3]+j) %4)];
+      for (let i=0;i<main.length;i++){
+        if ((main[i].couleur==this.contrat[1])&&(main[i].valeur=='king')){res++};
+        if ((main[i].couleur==this.contrat[1])&&(main[i].valeur=='queen')){res++};
+      }
+      if (res==2){this.compte[(this.contrat[3] %2)]+=20};
     }
-    if (res==2){this['compte'+(this.contrat[4] %2)]+=20};}
   }
-  //compte les points du pli n
-  function compte(n){
 
+  //compte les points des plis
+  function MAJcompte(){
+    for (i=0;i<2;i++){
+      for (j=0;j<this['main'+i].length;j++){
+        carte=this['main'+i][j];
+        switch(carte.valeur){
+          case "jack":
+          if ((this.contrat[1]=="TA")||(carte.couleur==this.contrat[1])){
+            this.compte[i]+=20;
+          } else{
+            this.compte[i]+=2;
+          }
+          break;
+          case "9":
+          if ((this.contrat[1]=="TA")||(carte.couleur==this.contrat[1])){
+            this.compte[i]+=14;
+          }
+          break;
+          case "1":
+          this.compte[i]+=11;
+          break;
+          case "10":
+          this.compte[i]+=10;
+          break;
+          case "king":
+          this.compte[i]+=4;
+          break;
+          case "queen":
+          this.compte[i]+=3;
+          break;
+        }
+      }
+    }
   }
   //définition des propriétés
   this.main0 = [];
@@ -225,14 +254,13 @@ function Donne(salle,donneur){
   this.main3 = [];
   this.plis0 = [];//plis de l'équipe 0/2
   this.plis1 = [];//plis de l'équipe 1/3
-  this.compte0=0;
-  this.compte1=0;
+  this.compte=[0,0];//comptes des équipes
   this.isBelote=isBelote;
   this.contrat = ["","","",-1];//score, couleur, coinche, numéro du preneur
   this.donneur = donneur;
   this.alamain = (donneur+1)%4;//dans le pli en cours
   this.distribuer = distribuer;
-  this.tourner = tourner;//donneur suivant
   this.ramasseur = ramasseur;
   this.ramasser = ramasser;//prend un tableau avec les 4 indices des cartes jouées
+  this.MAJcompte=MAJcompte;
 }
