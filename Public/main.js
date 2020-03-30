@@ -3,7 +3,7 @@ window.addEventListener('load',()=>{
 var $loginPage = document.getElementById('loginpage'); // The login page
 var $closePage = document.getElementById('closepage'); // The close page
 var $mainPage = document.getElementById('mainpage');// The main page
-var $annoncesPage = document.getElementById('annoncespage');// The main page
+var $annoncesPage = document.getElementById('annoncespage');// The annonce page
 const couleurs=["spade","heart","diamond","club"];
 const valeurs=["1","king","queen","jack","10","9","8","7"];
 var nojoueur=(-1);//numéro de joueur
@@ -74,7 +74,7 @@ socket.on('debutDePartie',()=>{
     main=data;
     for (let i=0;i<main.length;i++){
         var carte=main[i].couleur+"_"+main[i].valeur;
-        imagesCartes[carte].set({left:100+i*90,top:540,evented:true,id:i});
+        imagesCartes[carte].set({left:100+i*90,top:540,evented:true,id:i, groupe:false});
         canvas.add(imagesCartes[carte]);
       }
   });
@@ -142,7 +142,7 @@ socket.on('turamasses',(pli, no)=>{
   imagesCartes[pli[1].couleur+"_"+pli[1].valeur],
   imagesCartes[pli[2].couleur+"_"+pli[2].valeur],
   imagesCartes[pli[3].couleur+"_"+pli[3].valeur],
-  ],{originX:'center',originY:'center',hasControls:false,hasBorders:false,});
+],{originX:'center',originY:'center',hasControls:false,hasBorders:false,groupe:true});
   if (no!=nojoueur){imagePli.set({evented:false})};
   canvas.add(imagePli);
   for (i=0;i<4;i++){
@@ -235,24 +235,25 @@ for (let i=0;i<couleurs.length;i++) {
 
 //Event de pose d'une carte
 canvas.on('mouse:up',options=>{
+  console.log(options);
   if (options.target){
-    if (options.target.id){//on clique sur une carte
-      if (options.target.top<=450){
-        socket.emit('cartejouee',options.target.id);//on previent le serveur de la carte jouée
-        sousmain.set({fill:'transparent'});
-        options.target.evented=false;//on ne peut plus bouger la carte jouée
-        canvas.forEachObject((object)=>{//on ne peut plus poser de cartes
-          object.off('moving',zoneJouable);
-          object.on('moving',zoneSousMain);
-        });
-      }
-    } else {//c'est un groupe (imagepli)
+    if (options.target.groupe){//on clique sur un pli
       socket.emit('plireleve');
       canvas.remove(imagePli);
       canvas.renderAll();
+    } else {
+    if (options.target.top<=450){
+      socket.emit('cartejouee',options.target.id);//on previent le serveur de la carte jouée
+      sousmain.set({fill:'transparent'});
+      options.target.evented=false;//on ne peut plus bouger la carte jouée
+      canvas.forEachObject((object)=>{//on ne peut plus poser de cartes
+        object.off('moving',zoneJouable);
+        object.on('moving',zoneSousMain);
+      });
+     }
     }
   }
-})
+});
 
 
 

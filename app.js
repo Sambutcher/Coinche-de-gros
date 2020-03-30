@@ -69,6 +69,8 @@ io.on('connection', function(socket){
     //TODO:on annule la donne
   })
 
+  //TODOO personne ne prend
+
   //Un joueur a joué une carte
   socket.on('cartejouee',(carte)=>{
     socket.broadcast.emit('carteposee',donne['main'+socket.nojoueur][carte],socket.nojoueur);//on previent les autres qu'une carte a été posée
@@ -76,7 +78,6 @@ io.on('connection', function(socket){
     if (pli.every(e=>e!=(-1))){ //on a remplit le pli
       io.emit('turamasses',[donne.main0[pli[0]],donne.main1[pli[1]],donne.main2[pli[2]],donne.main3[pli[3]]],donne.ramasseur(pli));
     } else {
-      pli[socket.nojoueur]=carte;
       io.emit('atoidejouer',(socket.nojoueur+1)%4);
     }
   })
@@ -84,11 +85,12 @@ io.on('connection', function(socket){
 //un joueur a pris le pli
   socket.on('plireleve',()=>{
     socket.broadcast.emit('relevezpli');
+    var ramasseur=donne.ramasseur(pli);
     donne.ramasser(pli);
-    console.log(donne.plis0,donne.plis1);
     pli=[-1,-1,-1,-1];
-    if (donne.main0.length==0){
-      //TODO: fin de donneur
+    if (donne.plis0.length + donne.plis1.length==32){
+      //TODO: fin de donne
+      if (ramasseur%2==0){donne.compte0+=10} else {donne.compte1+=10};//10 de der
       console.log("fin de donne");
     } else {
       io.emit('atoidejouer',donne.alamain);
@@ -168,7 +170,7 @@ function Donne(salle,donneur){
     couleurDemande=tab[noOuvreur].couleur;
     score=[0,0,0,0];
     for (i=0;i<4;i++){
-      switch (atout=="SA"||atout=="TA"){
+      switch (atout){
         case "SA":
           if (tab[i].couleur==couleurDemande){
             score[i]=1+ordreCouleur.indexOf(tab[i].valeur);
@@ -187,7 +189,8 @@ function Donne(salle,donneur){
           case couleurDemande:
             score[i]=1+ordreCouleur.indexOf(tab[i].valeur);
             break;
-        }
+          }
+        break;
       }
     }
     return score.indexOf(Math.max(...score));//retourne l'indice du plus grand
@@ -200,6 +203,21 @@ function Donne(salle,donneur){
     }
     this.alamain=ram;//on donne la main au preneur
   }
+  //chercher la belote et mettre à jour le compte
+  function isBelote(){
+    for (let j=0;j<4;j=j+2){
+    var res=0;
+    var main=this['main'+((this.contrat[4]+j) %4)];
+    for (let i=0;i<main.length;i++){
+      if ((main[i].couleur==contrat[1])&&(main[i].valeur=='king')){res++};
+      if ((main[i].couleur==contrat[1])&&(main[i].valeur=='queen')){res++};
+    }
+    if (res==2){this['compte'+(this.contrat[4] %2)]+=20};}
+  }
+  //compte les points du pli n
+  function compte(n){
+
+  }
   //définition des propriétés
   this.main0 = [];
   this.main1 = [];
@@ -207,6 +225,9 @@ function Donne(salle,donneur){
   this.main3 = [];
   this.plis0 = [];//plis de l'équipe 0/2
   this.plis1 = [];//plis de l'équipe 1/3
+  this.compte0=0;
+  this.compte1=0;
+  this.isBelote=isBelote;
   this.contrat = ["","","",-1];//score, couleur, coinche, numéro du preneur
   this.donneur = donneur;
   this.alamain = (donneur+1)%4;//dans le pli en cours
@@ -214,15 +235,4 @@ function Donne(salle,donneur){
   this.tourner = tourner;//donneur suivant
   this.ramasseur = ramasseur;
   this.ramasser = ramasser;//prend un tableau avec les 4 indices des cartes jouées
-}
-
-
-//chercher la belote dans la main -> 1 ou 0
-function isBelote(main, contrat){
-  res=0;
-  for (let i=0;i<main.length;i++){
-    if ((main[i].couleur==contrat[1])&&(main[i].valeur=='king')){res++};
-    if ((main[i].couleur==contrat[1])&&(main[i].valeur=='queen')){res++};
-  }
-  if (res==2){return 1}else{return 0};
 }
