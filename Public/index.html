@@ -5,7 +5,7 @@
     <title>Coinche</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.0.3/socket.io.js"></script>
-    <script src="fabric.js"></script>
+    <script src="/fabric.js"></script>
 
   </head>
 
@@ -43,11 +43,11 @@
       </div>
 
       <div id="mainpage" >
-        <canvas id="c" width="800" height="600" style="border:1px solid black"></canvas>
+        <canvas id="c"  width="800" height="600" style="border:1px solid black"></canvas>
       </div>
 
       <dialog id="annoncespage" >
-        <form method="dialog" id='form'>
+        <form method="dialog" id='formcontrat'>
         <p>Annonce</p>
           <p><label>
             <select id="valeurcontrat">
@@ -88,10 +88,34 @@
         </select>
         </label></p>
         <p>
-          <button id="Jannule">Annuler la donne</button>
+          <button id="Redonner">Redonner</button>
           <button id="Jeprends">Je prends</button>
         </p>
         </form>
+    </dialog>
+
+    <dialog id="scorepage" >
+      <form method="dialog" id='formscore'>
+      <p>Fin de donne</p>
+      <p>Contrat:</p>
+      <p id='contrat'></p>
+      <p>Compte:</p>
+      <p id='compte'></p>
+      <p>Marque:</p>
+      <p>
+        <table>
+          <tr>
+            <th id='equipe0'>Equipe0</th>
+            <th id='equipe1'>Equipe1</th>
+          </tr>
+          <tr>
+            <td id='score0'></td>
+            <td id='score1'></td>
+          </tr>
+        </table>
+      </p>
+      <p><button id="donneSuivante">Donne suivante</button></p>
+      </form>
     </dialog>
 
     <div id="stockimages">
@@ -132,7 +156,7 @@
 
   </body>
 
-
+<script src="/dialog-polyfill.js"></script>
 <script src="/main.js"></script>
 
 </html>

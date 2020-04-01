@@ -8,9 +8,11 @@ app.use(express.static(__dirname + '/public')); //sert les fichiers clients dans
 
 var numUsers=0;//nombre dans la salle d'attente
 var salle=["","","",""];//salle de jeu
+var points=[0,0];
 var jeu;//tas de carte
 var donne; //suivi de la donne en cours
 var pli=[-1,-1,-1,-1];//pli en cours: n0 de carte dans la main du joueur
+var flagDonneSuivante=0;//pour relancer une donne quand tout le monde valide
 const couleurs=["spade","heart","diamond","club"];
 const valeurs=["1","king","queen","jack","10","9","8","7"];
 
@@ -28,26 +30,28 @@ io.on('connection', function(socket){
   //Etat de la salle à la connection du client
   socket.emit('MAJsalle',salle);
 
-  // Inscription d'un joueur dans la salle
+  // Inscription d'un joueur dans la salle et lancement de la partie
   socket.on('add user', (username,nojoueur) => {
     socket.nojoueur = nojoueur;
+    console.log(socket.nojoueur);
     salle[nojoueur] = username;
     socket.broadcast.emit('MAJsalle',salle);//on previent les autres
     socket.emit('MAJsalle',salle);
-    if (salle[0]!="" && salle[1]!="" && salle[2]!="" && salle[3]!=""){
+    if (salle[0]!="" && salle[1]!="" && salle[2]!="" && salle[3]!=""){//lancement de la partie
       jeu = new Jeu();
-      donne = new Donne(salle,0);
+      donne = new Donne(0);
       jeu.melanger();
       donne.distribuer(jeu);
-      io.emit('debutDePartie');
+      io.emit('debutDeDonne', 0);
     };
   });
 
   // Quand quelqu'un se déconnecte
   socket.on('disconnect', () => {
     --numUsers;
-    salle["joueur"+socket.nojoueur]="";
+    if (socket.nojoueur){salle[socket.nojoueur]=""};
     socket.broadcast.emit('MAJsalle',salle);
+    console.log(salle);
     //TODO: si deconnection en cours de jeu, faire qq chose
   });
 
@@ -61,15 +65,20 @@ io.on('connection', function(socket){
   //Un joueur prends
   socket.on('Jeprends',(data)=>{
     donne.contrat=data;
-    io.emit('atoidejouer',donne.alamain);//TODO: voir le cas de la générale
+    if (data[0]=="Générale"){donne.contrat.alamain=data[3]};
+    io.emit('atoidejouer',donne.alamain);
   })
 
-  //Un joueur annule
-  socket.on('Jannule',()=>{
-    //TODO:on annule la donne
+  //le 4ème joueur passe
+  socket.on('Redonner',()=>{
+    jeu.melanger();
+    nouveaudonneur=(donne.donneur+1)%4;
+    donne=new Donne(nouveaudonneur);
+    donne.distribuer(jeu);
+    io.emit('debutDeDonne',nouveaudonneur);
   })
 
-  //TODOO personne ne prend
+  //TODO: "j'annule"
 
   //Un joueur a joué une carte
   socket.on('cartejouee',(carte)=>{
@@ -82,27 +91,50 @@ io.on('connection', function(socket){
     }
   })
 
-//un joueur a pris le pli
+  //un joueur a pris le pli
   socket.on('plireleve',()=>{
     socket.broadcast.emit('relevezpli');
     var ramasseur=donne.ramasseur(pli);
     donne.ramasser(pli);
     pli=[-1,-1,-1,-1];
     if (donne.plis0.length + donne.plis1.length==32){
-      //TODO: fin de donne
       if (ramasseur%2==0){donne.compte[0]+=10} else {donne.compte[1]+=10};//10 de der
       donne.MAJcompte();
-      console.log("fin de donne",donne.compte);
-      console.log(donne.plis0,donne.plis1,donne.contrat);
+      if (donne.compte[(donne.contrat[3])%2>=donne.contrat[0]]){ //partie faite ou non. TODO: attention ce n'est pas des chiffres (parseInt(s,10)) et voir pour TA et SA
+      switch (donne.contrat[2]){
+        case "Coinché":
+         score[(donne.contrat[3]%2)]+=donne.contrat[0]*2;
+        break;
+
+
+
+        points[(donne.contrat[3]%2)]+=donne.contrat
+      }
+      io.emit('scores',donne.contrat, donne.compte);//TODO: afficher les scores
+      console.log("fin de donne",donne.contrat);
     } else {
       io.emit('atoidejouer',donne.alamain);
+    }
+  })
+
+  //un joueur a validé la donne Suivante
+  socket.on('donneSuivante',()=>{
+    flagDonneSuivante++;
+    if (flagDonneSuivante==4){
+      //nouvelle donne. TODO: gérer la fin de manche.
+      jeu.liste=Array.prototype.push.apply(donne.plis0, donne.plis1);//on refait le jeu
+      jeu.couper();
+      nouveaudonneur=(donne.donneur+1)%4;
+      donne=new Donne(nouveaudonneur);
+      donne.distribuer(jeu);
+      io.emit('debutDeDonne',nouveaudonneur);
     }
   })
 
 });
 
 //lancement du serveur sur le port 3000
-http.listen(3000);
+http.listen(80);
 
 
 //***Routines du jeu***
@@ -145,7 +177,7 @@ function Jeu(){
 }
 
 //constructeur donne de 4 joueurs et un donneur
-function Donne(salle,donneur){
+function Donne(donneur){
   //Distribuer les cartes aux joueurs
   function distribuer(jeu){
     jeu.couper;
@@ -166,7 +198,7 @@ function Donne(salle,donneur){
     atout=contrat[1];
     couleurDemande=tab[noOuvreur].couleur;
     score=[0,0,0,0];
-    for (i=0;i<4;i++){
+    for (let i=0;i<4;i++){
       switch (atout){
         case "SA":
           if (tab[i].couleur==couleurDemande){
@@ -195,7 +227,7 @@ function Donne(salle,donneur){
   //ramasser un pli (no de carte de chaque main dans un tableau de 4 indices,  on remplit le pli pour le ramasseur)
   function ramasser(pli){
     ram=this.ramasseur(pli);
-    for (i=0;i<4;i++){
+    for (let i=0;i<4;i++){
       this["plis"+(ram)%2].push(this['main'+i][pli[i]]); //range le pli
     }
     this.alamain=ram;//on donne la main au preneur
@@ -215,14 +247,15 @@ function Donne(salle,donneur){
 
   //compte les points des plis
   function MAJcompte(){
-    for (i=0;i<2;i++){
-      for (j=0;j<this['main'+i].length;j++){
-        carte=this['main'+i][j];
+    for (let i=0;i<2;i++){
+      for (let j=0;j<this['plis'+i].length;j++){
+        carte=this['plis'+i][j];
+        console.log(carte);
         switch(carte.valeur){
           case "jack":
           if ((this.contrat[1]=="TA")||(carte.couleur==this.contrat[1])){
             this.compte[i]+=20;
-          } else{
+          } else {
             this.compte[i]+=2;
           }
           break;
@@ -244,6 +277,7 @@ function Donne(salle,donneur){
           this.compte[i]+=3;
           break;
         }
+        console.log(this.compte[i]);
       }
     }
   }
