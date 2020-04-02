@@ -180,7 +180,7 @@ socket.on('relevezpli',()=>{
   canvas.renderAll();
 });
 
-socket.on('scores',(contrat,score)=>{
+/*socket.on('scores',(contrat,score)=>{
   var buf=contrat[0];
   switch (contrat[1]){
   case "spade":
@@ -202,10 +202,10 @@ socket.on('scores',(contrat,score)=>{
   buf+=contrat[2];
   document.getElementById('contrat').innerHTML=buf;
   document.getElementById('compte').innerHTML=score(contrat[3]%2);
-  
+
   }
 })
-
+*/
 //Affichage du canvas***************************
 
 //config de l'affichage de la table de jeu

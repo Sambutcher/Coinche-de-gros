@@ -33,7 +33,6 @@ io.on('connection', function(socket){
   // Inscription d'un joueur dans la salle et lancement de la partie
   socket.on('add user', (username,nojoueur) => {
     socket.nojoueur = nojoueur;
-    console.log(socket.nojoueur);
     salle[nojoueur] = username;
     socket.broadcast.emit('MAJsalle',salle);//on previent les autres
     socket.emit('MAJsalle',salle);
@@ -51,7 +50,6 @@ io.on('connection', function(socket){
     --numUsers;
     if (socket.nojoueur){salle[socket.nojoueur]=""};
     socket.broadcast.emit('MAJsalle',salle);
-    console.log(salle);
     //TODO: si deconnection en cours de jeu, faire qq chose
   });
 
@@ -98,7 +96,7 @@ io.on('connection', function(socket){
     donne.ramasser(pli);
     pli=[-1,-1,-1,-1];
     if (donne.plis0.length + donne.plis1.length==32){
-      if (ramasseur%2==0){donne.compte[0]+=10} else {donne.compte[1]+=10};//10 de der
+    /*  if (ramasseur%2==0){donne.compte[0]+=10} else {donne.compte[1]+=10};//10 de der
       donne.MAJcompte();
       if (donne.compte[(donne.contrat[3])%2>=donne.contrat[0]]){ //partie faite ou non. TODO: attention ce n'est pas des chiffres (parseInt(s,10)) et voir pour TA et SA
       switch (donne.contrat[2]){
@@ -111,9 +109,10 @@ io.on('connection', function(socket){
         points[(donne.contrat[3]%2)]+=donne.contrat
       }
       io.emit('scores',donne.contrat, donne.compte);//TODO: afficher les scores
-      console.log("fin de donne",donne.contrat);
+      console.log("fin de donne",donne.contrat);*/
     } else {
       io.emit('atoidejouer',donne.alamain);
+      console.log(donne.alamain);
     }
   })
 
@@ -134,7 +133,7 @@ io.on('connection', function(socket){
 });
 
 //lancement du serveur sur le port 3000
-http.listen(80);
+http.listen(3000);
 
 
 //***Routines du jeu***
@@ -250,7 +249,6 @@ function Donne(donneur){
     for (let i=0;i<2;i++){
       for (let j=0;j<this['plis'+i].length;j++){
         carte=this['plis'+i][j];
-        console.log(carte);
         switch(carte.valeur){
           case "jack":
           if ((this.contrat[1]=="TA")||(carte.couleur==this.contrat[1])){
@@ -277,7 +275,6 @@ function Donne(donneur){
           this.compte[i]+=3;
           break;
         }
-        console.log(this.compte[i]);
       }
     }
   }
