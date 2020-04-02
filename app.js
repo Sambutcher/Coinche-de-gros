@@ -6,13 +6,13 @@ var io = require('socket.io')(http);
 
 app.use(express.static(__dirname + '/public')); //sert les fichiers clients dans le dossier "public"
 
-var numUsers=0;//nombre dans la salle d'attente
-var salle=["","","",""];//salle de jeu
-var points=[0,0];
+//lancement du serveur sur le port 3000
+http.listen(3000);
+
+var table= new Table();
 var jeu;//tas de carte
 var donne; //suivi de la donne en cours
 var pli=[-1,-1,-1,-1];//pli en cours: n0 de carte dans la main du joueur
-var flagDonneSuivante=0;//pour relancer une donne quand tout le monde valide
 const couleurs=["spade","heart","diamond","club"];
 const valeurs=["1","king","queen","jack","10","9","8","7"];
 
@@ -22,49 +22,48 @@ const valeurs=["1","king","queen","jack","10","9","8","7"];
 io.on('connection', function(socket){
 
   //refus au bout du 4ème dans la salle d'attente
-  if (numUsers>3) {
-    socket.emit('sallePleine');
+  if (table.numUsers>3) {
+    socket.emit('Page','close');
     socket.disconnect(true);
-  } else {++numUsers;};
+  } else {++table.numUsers;};
 
   //Etat de la salle à la connection du client
-  socket.emit('MAJsalle',salle);
+  socket.emit('MAJsalle',table.salle);
 
   // Inscription d'un joueur dans la salle et lancement de la partie
   socket.on('add user', (username,nojoueur) => {
     socket.nojoueur = nojoueur;
-    salle[nojoueur] = username;
-    socket.broadcast.emit('MAJsalle',salle);//on previent les autres
-    socket.emit('MAJsalle',salle);
-    if (salle[0]!="" && salle[1]!="" && salle[2]!="" && salle[3]!=""){//lancement de la partie
+    table.salle[nojoueur] = username;
+    table.sockets[nojoueur]=socket;
+    io.emit('MAJsalle',table.salle);//on previent tout le monde
+    socket.emit('Page','main');
+    if (table.salle[0]!="" && table.salle[1]!="" && table.salle[2]!="" && table.salle[3]!=""){//lancement de la partie
       jeu = new Jeu();
       donne = new Donne(0);
       jeu.melanger();
       donne.distribuer(jeu);
-      io.emit('debutDeDonne', 0);
+      debutDeDonne();
     };
   });
 
   // Quand quelqu'un se déconnecte
   socket.on('disconnect', () => {
-    --numUsers;
-    if (socket.nojoueur){salle[socket.nojoueur]=""};
-    socket.broadcast.emit('MAJsalle',salle);
+    --table.numUsers;
+    if (socket.nojoueur){
+      table.salle[socket.nojoueur]="";
+      table.sockets[socket.nojoueur]=undefined;
+    };
+    socket.broadcast.emit('MAJsalle', table.salle);
     //TODO: si deconnection en cours de jeu, faire qq chose
   });
 
   //TODO: gerer la reconnection
 
-  //Envoi la main quand on lui demande
-  socket.on('pingMain',(fn)=>{
-    fn(donne["main"+socket.nojoueur]);
-  })
-
   //Un joueur prends
   socket.on('Jeprends',(data)=>{
     donne.contrat=data;
     if (data[0]=="Générale"){donne.contrat.alamain=data[3]};
-    io.emit('atoidejouer',donne.alamain);
+    io.emit('Touratoi',donne.alamain);
   })
 
   //le 4ème joueur passe
@@ -73,29 +72,29 @@ io.on('connection', function(socket){
     nouveaudonneur=(donne.donneur+1)%4;
     donne=new Donne(nouveaudonneur);
     donne.distribuer(jeu);
-    io.emit('debutDeDonne',nouveaudonneur);
+    debutDeDonne();
   })
 
   //TODO: "j'annule"
 
   //Un joueur a joué une carte
   socket.on('cartejouee',(carte)=>{
-    socket.broadcast.emit('carteposee',donne['main'+socket.nojoueur][carte],socket.nojoueur);//on previent les autres qu'une carte a été posée
+    socket.broadcast.emit('MAJcarteposee',donne['main'+socket.nojoueur][carte],socket.nojoueur);//on previent les autres qu'une carte a été posée
     pli[socket.nojoueur]=carte;
-    if (pli.every(e=>e!=(-1))){ //on a remplit le pli
-      io.emit('turamasses',[donne.main0[pli[0]],donne.main1[pli[1]],donne.main2[pli[2]],donne.main3[pli[3]]],donne.ramasseur(pli));
+    if (pli.every(e=>e!=(-1))){ //Les 4 cartes sont posées
+      io.emit('Tourplifait',[donne.main0[pli[0]],donne.main1[pli[1]],donne.main2[pli[2]],donne.main3[pli[3]]],donne.ramasseur(pli));
     } else {
-      io.emit('atoidejouer',(socket.nojoueur+1)%4);
+      io.emit('Touratoi',(socket.nojoueur+1)%4);
     }
   })
 
   //un joueur a pris le pli
   socket.on('plireleve',()=>{
-    socket.broadcast.emit('relevezpli');
+    socket.broadcast.emit('MAJpliramasse');
     var ramasseur=donne.ramasseur(pli);
     donne.ramasser(pli);
     pli=[-1,-1,-1,-1];
-    if (donne.plis0.length + donne.plis1.length==32){
+    if (donne.plis0.length + donne.plis1.length==32){//fin de donne
     /*  if (ramasseur%2==0){donne.compte[0]+=10} else {donne.compte[1]+=10};//10 de der
       donne.MAJcompte();
       if (donne.compte[(donne.contrat[3])%2>=donne.contrat[0]]){ //partie faite ou non. TODO: attention ce n'est pas des chiffres (parseInt(s,10)) et voir pour TA et SA
@@ -106,37 +105,45 @@ io.on('connection', function(socket){
 
 
 
-        points[(donne.contrat[3]%2)]+=donne.contrat
+        table.points[(donne.contrat[3]%2)]+=donne.contrat
       }
       io.emit('scores',donne.contrat, donne.compte);//TODO: afficher les scores
       console.log("fin de donne",donne.contrat);*/
     } else {
-      io.emit('atoidejouer',donne.alamain);
-      console.log(donne.alamain);
+      io.emit('Touratoi',donne.alamain);
     }
   })
 
   //un joueur a validé la donne Suivante
   socket.on('donneSuivante',()=>{
-    flagDonneSuivante++;
-    if (flagDonneSuivante==4){
+    table.flagDonneSuivante++;
+    if (table.flagDonneSuivante==4){
       //nouvelle donne. TODO: gérer la fin de manche.
       jeu.liste=Array.prototype.push.apply(donne.plis0, donne.plis1);//on refait le jeu
       jeu.couper();
       nouveaudonneur=(donne.donneur+1)%4;
       donne=new Donne(nouveaudonneur);
       donne.distribuer(jeu);
-      io.emit('debutDeDonne',nouveaudonneur);
+      debutDeDonne();
     }
   })
 
 });
 
-//lancement du serveur sur le port 3000
-http.listen(3000);
 
 
-//***Routines du jeu***
+//*****fonctions du jeu
+
+function debutDeDonne(){
+  for (let i=0;i<4; i++){
+    table.sockets[i].emit('Tourdebut',donne.donneur,donne['main'+i]);
+  }
+}
+
+
+
+
+//***Déinition des objets du jeu***
 
 
 //constructeur tas de cartes mélangé et méthode de coupe
@@ -294,4 +301,15 @@ function Donne(donneur){
   this.ramasseur = ramasseur;
   this.ramasser = ramasser;//prend un tableau avec les 4 indices des cartes jouées
   this.MAJcompte=MAJcompte;
+}
+
+//constructeur de l'objet Table qui gère tous les joueurs
+function Table (){
+
+
+  this.numUsers=0;//nombre de personne qui ouvrent un socket
+  this.salle=["","","",""];//nom des joueurs
+  this.sockets=[,,,];//sockets des joueurs
+  this.points=[0,0];//suivi des totaux
+  this.flagDonneSuivante=0;//pour savoir si tout le monde est ok pour passer à la donne suivante
 }
