@@ -66,37 +66,10 @@ socket.on('Page',affichePage); //Demande du serveur de changer de page
 socket.on('MAJsalle',MAJsalle); // (salle)
 socket.on('MAJcarteposee',MAJcarteposee);//(carte, joueur)
 socket.on('MAJpliramasse',MAJpliramasse);//()
+socket.on('MAJscores',MAJscores); //(contrat,compte,scores)
 socket.on('Tourdebut',debutDeDonne); //(donneur, main)
 socket.on('Touratoi',atoidejouer);//(No de joueur à jouer)
 socket.on('Tourplifait',plifait);//(pli,no du ramasseur)
-
-
-/*socket.on('scores',(contrat,score)=>{
-  var buf=contrat[0];
-  switch (contrat[1]){
-  case "spade":
-    buf+=" <div style="color:black">&spades;</div> ";
-  break;
-  case "heart":
-    buf+=" <div style="color:red">&hearts;</div> ";
-  break;
-  case "diamond":
-    buf+=" <div style="color:red">&diams;</div> ";
-  break;
-  case "club":
-    buf+=" <div style="color:black">&clubs;</div> ";
-  break;
-  default:
-    buf+=" "+contrat[1]+" "
-  break;
-  }
-  buf+=contrat[2];
-  document.getElementById('contrat').innerHTML=buf;
-  document.getElementById('compte').innerHTML=score(contrat[3]%2);
-
-  }
-})
-*/
 
 //********************fonctions de jeu
 //Lancement de la partie
@@ -287,10 +260,13 @@ function MAJsalle(salle){
   //MAJ de la salle d'attente
   for (let i=0;i<4;i++){
     document.getElementById('joueur'+i).value=salle[i];
+    console.log(salle[i]);
     if (salle[i]!="") {
       document.getElementById('Entrer'+i).style.display="none";
       document.getElementById('joueur'+i).disabled=true;
-    } else { document.getElementById('Entrer'+i).style.display='initial';
+    } else {
+      document.getElementById('Entrer'+i).style.display='initial';
+      document.getElementById('joueur'+i).disabled=false;
     }
   };
   //MAJ de la Table
@@ -325,6 +301,33 @@ function MAJcarteposee (carte,alamain){
 function MAJpliramasse(){
   canvas.remove(imagePli);
   canvas.renderAll();
+};
+
+//on m et à jour la page de scores
+function MAJscores (contrat,compte,scores)=>{//TODO: à écrire
+  /*var buf=contrat[0];
+  switch (contrat[1]){
+  case "spade":
+    buf+=" <div style="color:black">&spades;</div> ";
+  break;
+  case "heart":
+    buf+=" <div style="color:red">&hearts;</div> ";
+  break;
+  case "diamond":
+    buf+=" <div style="color:red">&diams;</div> ";
+  break;
+  case "club":
+    buf+=" <div style="color:black">&clubs;</div> ";
+  break;
+  default:
+    buf+=" "+contrat[1]+" "
+  break;
+  }
+  buf+=contrat[2];
+  document.getElementById('contrat').innerHTML=buf;
+  document.getElementById('compte').innerHTML=score(contrat[3]%2);
+
+}*/
 };
 
 });

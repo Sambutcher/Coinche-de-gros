@@ -18,6 +18,8 @@ const valeurs=["1","king","queen","jack","10","9","8","7"];
 
 //***evenements du serveur***
 
+//TODO: reprendre sa carte, regarder le pli précédent, téléconférence
+
 //connection d'un client sur le socket
 io.on('connection', function(socket){
 
@@ -49,17 +51,20 @@ io.on('connection', function(socket){
   // Quand quelqu'un se déconnecte
   socket.on('disconnect', () => {
     --table.numUsers;
-    if (socket.nojoueur){
+    if (socket.nojoueur||(socket.nojoueur==0)){
       table.salle[socket.nojoueur]="";
       table.sockets[socket.nojoueur]=undefined;
+      console.log(table.salle);
     };
+    if (donne){//si partie en cours, on tue tout
+      socket.broadcast.emit('Page','login');
+      table=new Table();
+      pli=pli=[-1,-1,-1,-1];
+    }
     socket.broadcast.emit('MAJsalle', table.salle);
-    //TODO: si deconnection en cours de jeu, faire qq chose
   });
 
-  //TODO: gerer la reconnection
-
-  //Un joueur prends
+  //Un joueur prends //TODO: vérifier si tout le monde est d'accord
   socket.on('Jeprends',(data)=>{
     donne.contrat=data;
     if (data[0]=="Générale"){donne.contrat.alamain=data[3]};
@@ -95,20 +100,11 @@ io.on('connection', function(socket){
     donne.ramasser(pli);
     pli=[-1,-1,-1,-1];
     if (donne.plis0.length + donne.plis1.length==32){//fin de donne
-    /*  if (ramasseur%2==0){donne.compte[0]+=10} else {donne.compte[1]+=10};//10 de der
+      if (ramasseur%2==0){donne.compte[0]+=10} else {donne.compte[1]+=10};//10 de der
       donne.MAJcompte();
-      if (donne.compte[(donne.contrat[3])%2>=donne.contrat[0]]){ //partie faite ou non. TODO: attention ce n'est pas des chiffres (parseInt(s,10)) et voir pour TA et SA
-      switch (donne.contrat[2]){
-        case "Coinché":
-         score[(donne.contrat[3]%2)]+=donne.contrat[0]*2;
-        break;
-
-
-
-        table.points[(donne.contrat[3]%2)]+=donne.contrat
-      }
-      io.emit('scores',donne.contrat, donne.compte);//TODO: afficher les scores
-      console.log("fin de donne",donne.contrat);*/
+      table.finDeDonne(donne);
+      io.emit('MAJscores',donne.contrat, donne.compte,table.scores);
+      io.emit('Page','scores');
     } else {
       io.emit('Touratoi',donne.alamain);
     }
@@ -124,6 +120,7 @@ io.on('connection', function(socket){
       nouveaudonneur=(donne.donneur+1)%4;
       donne=new Donne(nouveaudonneur);
       donne.distribuer(jeu);
+      io.emit('Page','main');
       debutDeDonne();
     }
   })
@@ -140,11 +137,7 @@ function debutDeDonne(){
   }
 }
 
-
-
-
 //***Déinition des objets du jeu***
-
 
 //constructeur tas de cartes mélangé et méthode de coupe
 function Jeu(){
@@ -240,6 +233,7 @@ function Donne(donneur){
   }
   //chercher la belote et mettre à jour le compte
   function isBelote(){
+    if (contrat[0]=='Capot'||contrat[0]=='Générale'){return};//pas de belote sur capots et générale
     for (let j=0;j<4;j=j+2){
       var res=0;
       var main=this['main'+((this.contrat[3]+j) %4)];
@@ -305,7 +299,9 @@ function Donne(donneur){
 
 //constructeur de l'objet Table qui gère tous les joueurs
 function Table (){
-
+  function finDeDonne(donne){
+    //TODO: à écrire
+  }
 
   this.numUsers=0;//nombre de personne qui ouvrent un socket
   this.salle=["","","",""];//nom des joueurs
