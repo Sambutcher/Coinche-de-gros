@@ -46,9 +46,18 @@
         <canvas id="c"  width="800" height="600" style="border:1px solid black"></canvas>
       </div>
 
+      <dialog id="jeprendspage">
+        <form method="dialog" id='formjeprends'>
+          <p>
+            <button id="Redonner">Redonner</button>
+            <button id="Jeprends">Je prends</button>
+          </p>
+        </form>
+      </dialog>
+
       <dialog id="annoncespage" >
         <form method="dialog" id='formcontrat'>
-        <p>Annonce</p>
+        <p>Contrat:</p>
           <p><label>
             <select id="valeurcontrat">
               <option>80</option>
@@ -88,20 +97,15 @@
         </select>
         </label></p>
         <p>
-          <button id="Redonner">Redonner</button>
-          <button id="Jeprends">Je prends</button>
+          <button id="OK">OK</button>
         </p>
         </form>
     </dialog>
 
     <dialog id="scorepage" >
       <form method="dialog" id='formscore'>
-      <p>Fin de donne</p>
-      <p>Contrat:</p>
       <p id='contrat'></p>
-      <p>Compte:</p>
       <p id='compte'></p>
-      <p>Marque:</p>
       <p>
         <table>
           <tr>
@@ -151,7 +155,7 @@
       <img src="/img/club_9.png" id="club_9" class="carte">
       <img src="/img/club_8.png" id="club_8" class="carte">
       <img src="/img/club_7.png" id="club_7" class="carte">
-      <img src="img/back.png" id="back" class="carte">
+      <img src="/img/back.png" id="back" class="carte">
     </div>
 
   </body>

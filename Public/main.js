@@ -1,5 +1,7 @@
 window.addEventListener('load',()=>{
 
+
+//TODO: animations, responsive
 dialogPolyfill.registerDialog(document.querySelector('dialog')); //polyfill pour dialog
 fabric.Object.prototype.objectCaching = false;//Empeche le caching pour la librairie fabric
 
@@ -40,14 +42,20 @@ for (let i=0;i<4;i++){
 
 //Init de contrat page: events de bouton
 document.getElementById('Jeprends').addEventListener('click',()=>{
+  socket.emit('Jeprends');
+  affichePage('annonces');
+});
+
+document.getElementById('OK').addEventListener('click',()=>{
   var radioCouleur=document.getElementsByName('couleurcontrat');
   var contrat=[document.getElementById('valeurcontrat').value,"",document.getElementById('coinche').value,nojoueur];
   for (let i=0;i<radioCouleur.length;i++){
     if (radioCouleur[i].checked){contrat[1]=radioCouleur[i].value};
   }
   if (contrat[1]!=""){
-    socket.emit('Jeprends',contrat);//On envoie au serveur le contrat
+    socket.emit('Jedonnelecontrat',contrat);//On envoie au serveur le contrat
   };
+  affichePage('main');
 })
 document.getElementById('Redonner').addEventListener('click',()=>{
   socket.emit('Redonner');
@@ -76,11 +84,12 @@ socket.on('Tourplifait',plifait);//(pli,no du ramasseur)
 function debutDeDonne (donneur,main){
   for (let i=0;i<main.length;i++){
     var carte=main[i].couleur+"_"+main[i].valeur;
-    imagesCartes[carte].set({left:100+i*90,top:540,evented:true,id:i, groupe:false});
+    imagesCartes[carte].set({left:100+i*90,top:540,evented:true,id:i, groupe:false, angle:0});
     canvas.add(imagesCartes[carte]);
   }
+  canvas.renderAll();
   afficheJoueurActif((donneur+1)%4);
-  affichePage('annonces');
+  affichePage('jeprends');
   if (nojoueur==donneur){
     document.getElementById('Redonner').style.display="initial"
   } else {
@@ -105,7 +114,7 @@ function atoidejouer(joueur){
 function plifait(pli, no){
   afficheJoueurActif(no);
   for (let i=0;i<4;i++){
-  /*  if (no==nojoueur){imagesCartes[pli[i].couleur+"_"+pli[i].valeur].animate({left:360+(20*i),top:400,angle:0},{duration: 1000, onChange: canvas.renderAll.bind(canvas)})};
+  /*  TODO: if (no==nojoueur){imagesCartes[pli[i].couleur+"_"+pli[i].valeur].animate({left:360+(20*i),top:400,angle:0},{duration: 1000, onChange: canvas.renderAll.bind(canvas)})};
     if (no==(nojoueur+1)%4) {imagesCartes[pli[i].couleur+"_"+pli[i].valeur].animate({left:200,top:260+(20*i),angle:90},{duration: 1000, onChange: canvas.renderAll.bind(canvas)})};
     if (no==(nojoueur+2)%4) {imagesCartes[pli[i].couleur+"_"+pli[i].valeur].animate({left:360+(20*i),top:125,angle:0},{duration: 1000, onChange: canvas.renderAll.bind(canvas)})};
     if (no==(nojoueur+3)%4) {imagesCartes[pli[i].couleur+"_"+pli[i].valeur].animate({left:600,top:260+(20*i),angle:90},{duration: 1000, onChange: canvas.renderAll.bind(canvas)})};
@@ -114,14 +123,22 @@ function plifait(pli, no){
     if (no==(nojoueur+2)%4) {imagesCartes[pli[i].couleur+"_"+pli[i].valeur].set({left:360+(20*i),top:125,angle:0})};
     if (no==(nojoueur+3)%4) {imagesCartes[pli[i].couleur+"_"+pli[i].valeur].set({left:600,top:260+(20*i),angle:90})};
   }
-  imagePli=new fabric.Group([
-  imagesCartes[pli[0].couleur+"_"+pli[0].valeur],
-  imagesCartes[pli[1].couleur+"_"+pli[1].valeur],
-  imagesCartes[pli[2].couleur+"_"+pli[2].valeur],
-  imagesCartes[pli[3].couleur+"_"+pli[3].valeur],
-],{originX:'center',originY:'center',hasControls:false,hasBorders:false,groupe:true});
-  if (no!=nojoueur){imagePli.set({evented:false})};
-  canvas.add(imagePli);
+  imagePli=new fabric.Group();
+  imagesCartes[pli[0].couleur+"_"+pli[0].valeur].clone(x=>{
+    imagePli.addWithUpdate(x);
+    imagesCartes[pli[1].couleur+"_"+pli[1].valeur].clone(x=>{
+      imagePli.addWithUpdate(x);
+      imagesCartes[pli[2].couleur+"_"+pli[2].valeur].clone(x=>{
+        imagePli.addWithUpdate(x);
+        imagesCartes[pli[3].couleur+"_"+pli[3].valeur].clone(x=>{
+          imagePli.addWithUpdate(x);
+          imagePli.set({hasControls:false,hasBorders:false,groupe:true});
+          if (no!=nojoueur){imagePli.set({evented:false})};
+          canvas.add(imagePli);
+        })
+      })
+    })
+  })
   for (let i=0;i<4;i++){
     canvas.remove(imagesCartes[pli[i].couleur+"_"+pli[i].valeur]);
   }
@@ -222,7 +239,7 @@ canvas.on('mouse:up',options=>{
 //Affichage d'une page donnée
 function affichePage (page){
   var pages=['login','close','main'];// Pages disponibles
-  var dialogs=['annonces','score'] ;//fenetres de dialogue
+  var dialogs=['annonces','score','jeprends'] ;//fenetres de dialogue
   for (let i=0;i<pages.length;i++){
     if (page==pages[i]){
       document.getElementById(pages[i]+'page').style.display="block";
@@ -253,6 +270,7 @@ function afficheJoueurActif(nojoueuractif){
     if (nojoueuractif==(nojoueur+2)%4) {jFace.set({textBackgroundColor:'blue'})};
     if (nojoueuractif==(nojoueur+3)%4) {jDroite.set({textBackgroundColor:'blue'})};
   };
+  canvas.renderAll();
 }
 
 //Met à jour des joueurs
@@ -260,7 +278,7 @@ function MAJsalle(salle){
   //MAJ de la salle d'attente
   for (let i=0;i<4;i++){
     document.getElementById('joueur'+i).value=salle[i];
-    console.log(salle[i]);
+
     if (salle[i]!="") {
       document.getElementById('Entrer'+i).style.display="none";
       document.getElementById('joueur'+i).disabled=true;
@@ -279,6 +297,7 @@ function MAJsalle(salle){
   //MAJ du tableau de score
   document.getElementById('equipe0').innerHTML=salle[0] + "<BR>" + salle[2];
   document.getElementById('equipe1').innerHTML=salle[1] + "<BR>" + salle[3];
+
 };
 
 //on affiche la carte posée par un autre joueur
@@ -304,30 +323,29 @@ function MAJpliramasse(){
 };
 
 //on m et à jour la page de scores
-function MAJscores (contrat,compte,scores)=>{//TODO: à écrire
-  /*var buf=contrat[0];
+function MAJscores (contrat,compte,scores){
+  var buf;
   switch (contrat[1]){
   case "spade":
-    buf+=" <div style="color:black">&spades;</div> ";
+    buf=" <span style='color:black'>&spades;</span> ";
   break;
   case "heart":
-    buf+=" <div style="color:red">&hearts;</div> ";
+    buf=" <span style='color:red'>&hearts;</span> ";
   break;
   case "diamond":
-    buf+=" <div style="color:red">&diams;</div> ";
+    buf=" <span style='color:red'>&diams;</span> ";
   break;
   case "club":
-    buf+=" <div style="color:black">&clubs;</div> ";
+    buf=" <span style='color:black'>&clubs;</span> ";
   break;
   default:
-    buf+=" "+contrat[1]+" "
+    buf=contrat[1];
   break;
   }
-  buf+=contrat[2];
-  document.getElementById('contrat').innerHTML=buf;
-  document.getElementById('compte').innerHTML=score(contrat[3]%2);
-
-}*/
+  document.getElementById('contrat').innerHTML="Contrat: "+contrat[0]+buf+contrat[2];
+  document.getElementById('compte').innerHTML="Points faits: "+compte[contrat[3]%2];
+  document.getElementById('score0').innerHTML=scores[0];
+  document.getElementById('score1').innerHTML=scores[1];
 };
 
 });

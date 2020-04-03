@@ -18,7 +18,7 @@ const valeurs=["1","king","queen","jack","10","9","8","7"];
 
 //***evenements du serveur***
 
-//TODO: reprendre sa carte, regarder le pli précédent, téléconférence
+//TODO: téléconférence, reprendre sa carte, regarder le pli précédent,
 
 //connection d'un client sur le socket
 io.on('connection', function(socket){
@@ -28,6 +28,21 @@ io.on('connection', function(socket){
     socket.emit('Page','close');
     socket.disconnect(true);
   } else {++table.numUsers;};
+
+  // Quand quelqu'un se déconnecte
+  socket.on('disconnect', () => {
+    --table.numUsers;
+    if (socket.nojoueur||(socket.nojoueur==0)){
+      table.salle[socket.nojoueur]="";
+      table.sockets[socket.nojoueur]=undefined;
+    };
+    if (donne){//si partie en cours, on tue tout
+      socket.broadcast.emit('Page','login');
+      table=new Table();
+      pli=pli=[-1,-1,-1,-1];
+    }
+    socket.broadcast.emit('MAJsalle', table.salle);
+  });
 
   //Etat de la salle à la connection du client
   socket.emit('MAJsalle',table.salle);
@@ -48,26 +63,14 @@ io.on('connection', function(socket){
     };
   });
 
-  // Quand quelqu'un se déconnecte
-  socket.on('disconnect', () => {
-    --table.numUsers;
-    if (socket.nojoueur||(socket.nojoueur==0)){
-      table.salle[socket.nojoueur]="";
-      table.sockets[socket.nojoueur]=undefined;
-      console.log(table.salle);
-    };
-    if (donne){//si partie en cours, on tue tout
-      socket.broadcast.emit('Page','login');
-      table=new Table();
-      pli=pli=[-1,-1,-1,-1];
-    }
-    socket.broadcast.emit('MAJsalle', table.salle);
-  });
 
-  //Un joueur prends //TODO: vérifier si tout le monde est d'accord
-  socket.on('Jeprends',(data)=>{
+  socket.on('Jeprends',()=>{
+    socket.broadcast.emit('Page','main');
+  })
+
+  socket.on('Jedonnelecontrat',(data)=>{
     donne.contrat=data;
-    if (data[0]=="Générale"){donne.contrat.alamain=data[3]};
+    if (data[0]=="Générale"){donne.alamain=data[3]};
     io.emit('Touratoi',donne.alamain);
   })
 
@@ -99,12 +102,14 @@ io.on('connection', function(socket){
     var ramasseur=donne.ramasseur(pli);
     donne.ramasser(pli);
     pli=[-1,-1,-1,-1];
-    if (donne.plis0.length + donne.plis1.length==32){//fin de donne
+    var nbplis=0;
+    for (let i=0;i<4;i++){nbplis+=donne.plis[i].length};
+    if (nbplis==32){//fin de donne
       if (ramasseur%2==0){donne.compte[0]+=10} else {donne.compte[1]+=10};//10 de der
       donne.MAJcompte();
       table.finDeDonne(donne);
-      io.emit('MAJscores',donne.contrat, donne.compte,table.scores);
-      io.emit('Page','scores');
+      io.emit('MAJscores',donne.contrat, donne.compte,table.points);
+      io.emit('Page','score');
     } else {
       io.emit('Touratoi',donne.alamain);
     }
@@ -114,13 +119,12 @@ io.on('connection', function(socket){
   socket.on('donneSuivante',()=>{
     table.flagDonneSuivante++;
     if (table.flagDonneSuivante==4){
-      //nouvelle donne. TODO: gérer la fin de manche.
-      jeu.liste=Array.prototype.push.apply(donne.plis0, donne.plis1);//on refait le jeu
+      if (table.points[0]>=1000 || table.points[1]>=1000) {table.points=[0,0];}
+      jeu.liste=donne.plis[0].concat(donne.plis[2], donne.plis[1], donne.plis[3]);//on refait le jeu
       jeu.couper();
       nouveaudonneur=(donne.donneur+1)%4;
       donne=new Donne(nouveaudonneur);
       donne.distribuer(jeu);
-      io.emit('Page','main');
       debutDeDonne();
     }
   })
@@ -227,7 +231,7 @@ function Donne(donneur){
   function ramasser(pli){
     ram=this.ramasseur(pli);
     for (let i=0;i<4;i++){
-      this["plis"+(ram)%2].push(this['main'+i][pli[i]]); //range le pli
+      this.plis[ram].push(this['main'+i][pli[i]]); //range le pli
     }
     this.alamain=ram;//on donne la main au preneur
   }
@@ -248,8 +252,8 @@ function Donne(donneur){
   //compte les points des plis
   function MAJcompte(){
     for (let i=0;i<2;i++){
-      for (let j=0;j<this['plis'+i].length;j++){
-        carte=this['plis'+i][j];
+      for (let j=0;j<this.plis[i].length;j++){
+        carte=this.plis[i][j];
         switch(carte.valeur){
           case "jack":
           if ((this.contrat[1]=="TA")||(carte.couleur==this.contrat[1])){
@@ -284,8 +288,7 @@ function Donne(donneur){
   this.main1 = [];
   this.main2 = [];
   this.main3 = [];
-  this.plis0 = [];//plis de l'équipe 0/2
-  this.plis1 = [];//plis de l'équipe 1/3
+  this.plis=[[],[],[],[]];//plis de chaque joueur
   this.compte=[0,0];//comptes des équipes
   this.isBelote=isBelote;
   this.contrat = ["","","",-1];//score, couleur, coinche, numéro du preneur
@@ -300,7 +303,37 @@ function Donne(donneur){
 //constructeur de l'objet Table qui gère tous les joueurs
 function Table (){
   function finDeDonne(donne){
-    //TODO: à écrire
+    //Comparons le contrat et le score
+    var compteur=[0,0];//score de l'équipe qui marque
+    switch (donne.contrat[0]){
+      case 'Générale':
+      if (donne.plis[donne.contrat[3]].length==32){
+        compteur[donne.contrat[3]%2]=500;
+      } else {
+        compteur[(donne.contrat[3]+1)%2]=160;
+      }
+      break;
+      case 'Capot':
+      if (donne.plis[donne.contrat[3]].length+donne.plis[(donne.contrat[3]+2)%4].length==32){
+        compteur[donne.contrat[3]%2]=250;
+      } else {
+        compteur[(donne.contrat[3]+1)%2]=160;
+      }
+      break;
+      default:
+      var valcontrat=parseInt(donne.contrat[0],10);
+      if (donne.compte[donne.contrat[3]%2]>=valcontrat){
+        compteur[donne.contrat[3]%2]=valcontrat;
+      } else {
+        compteur[(donne.contrat[3]+1)%2]=160;
+      }
+      break;
+    }
+    if (donne.contrat[2]=="Coinché"){compteur=compteur.map(n=>2*n)};
+    if (donne.contrat[2]=="Surcoinché"){compteur=compteur.map(n=>4*n)};
+    this.points[0]+=compteur[0];
+    this.points[1]+=compteur[1];
+    this.flagDonneSuivante=0;
   }
 
   this.numUsers=0;//nombre de personne qui ouvrent un socket
@@ -308,4 +341,5 @@ function Table (){
   this.sockets=[,,,];//sockets des joueurs
   this.points=[0,0];//suivi des totaux
   this.flagDonneSuivante=0;//pour savoir si tout le monde est ok pour passer à la donne suivante
+  this.finDeDonne=finDeDonne;//met à jour les scores et le flag
 }

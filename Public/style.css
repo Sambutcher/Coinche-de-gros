@@ -49,13 +49,23 @@ body {
 dialog{
   position:absolute;
   margin-top:100px;
-  margin-left: 250px;
   text-align: center;
   font-size: 20px;
   background-color: darkgreen;
   border-width: 0;
   display: none;
 
+}
+
+table{
+  width:50%;
+  text-align: center;
+}
+
+td{
+  border:1px solid black;
+  width:50%;
+  text-align: center;
 }
 
 #stockimages{
