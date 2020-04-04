@@ -18,6 +18,8 @@ var canvas = new fabric.Canvas('c',{
   hoverCursor : 'pointer',
   selection : false,
 });
+var largeurfenetre;
+var hauteurfenetre;
 var jGauche;
 var jFace;
 var jDroite;
@@ -147,6 +149,10 @@ function plifait(pli, no){
 
 //*********************initialisation du canvas
 function initCanvas (){
+  canvas.setDimensions({width:'100%',height:'100%'},{cssOnly: true});//TODO:Faire un canvas plus petit pour qu'il puisse être grossi+mettre à jour en fonction de la taille d'écran
+  hauteurfenetre=window.innerHeight;
+  largeurfenetre=window.innerWidth;
+
   var soustable=new fabric.Rect({  width: 600, height: 400, fill: 'darkgreen', left: 100, top: 50, evented:false,hoverCursor:'default'});
 
   sousmain=new fabric.Rect({  width: 800, height: 120, fill: 'green', left: 0, top: 480, evented:false, hoverCursor:'default'});
@@ -165,7 +171,7 @@ function initCanvas (){
       top: 0,
       originX: "center",
       originY: "center",
-      scaleX:80/169,
+      scaleX:(600/window.innerWidth)*(window.innerHeight/400)*(80/169),
       scaleY:80/169,
       hasControls:false,
       hasBorders:false,
@@ -178,7 +184,7 @@ function initCanvas (){
           top: 0,
           originX: "center",
           originY: "center",
-          scaleX:80/169,
+          scaleX:(600/window.innerWidth)*(window.innerHeight/400)*(80/169),
           scaleY:80/169,
           hasControls:false,
           hasBorders:false,
@@ -187,7 +193,20 @@ function initCanvas (){
         imagesCartes[couleurs[i]+"_"+valeurs[j]]=buf;
     }
   }
-}
+  }
+
+  //rediemnsionnement des cartes
+  window.onresize= function(){
+  for (let i in imagesCartes){
+    var scale=imagesCartes[i].scaleX
+    imagesCartes[i].set({scaleX:scale*(largeurfenetre/window.innerWidth)*(window.innerHeight/hauteurfenetre)});
+  }
+  console.log(imagesCartes['spade_king'].scaleX,imagesCartes['spade_king'].scaleX*(largeurfenetre/window.innerWidth)*(window.innerHeight/hauteurfenetre));
+  hauteurfenetre=window.innerHeight;
+  largeurfenetre=window.innerWidth;
+  canvas.renderAll();  
+  }
+
 
 //callback pour ne laisser les cartes que sur sousmain
 function zoneSousMain(options){
