@@ -1,8 +1,7 @@
 window.addEventListener('load',()=>{
 
 
-//TODO: animations, responsive
-dialogPolyfill.registerDialog(document.querySelector('dialog')); //polyfill pour dialog
+//TODO: animations, resize
 fabric.Object.prototype.objectCaching = false;//Empeche le caching pour la librairie fabric
 
 const couleurs=["spade","heart","diamond","club"];
@@ -10,7 +9,7 @@ const valeurs=["1","king","queen","jack","10","9","8","7"];
 var nojoueur=(-1);//numéro de joueur
 var main;//main du joueur
 var table;//table en cours
-var socket = io();//connection au socket
+var socket = io('http://coinche-de-gros.appspot.com:80');//connection au socket
 
 //*********init du canvas
 var canvas = new fabric.Canvas('c',{
@@ -18,13 +17,14 @@ var canvas = new fabric.Canvas('c',{
   hoverCursor : 'pointer',
   selection : false,
 });
-var largeurfenetre;
-var hauteurfenetre;
+var vw;//largeur de la fenetre
+var vh;//hauteur de la fenetre
 var jGauche;
 var jFace;
 var jDroite;
 var imagesCartes={};
 var imagePli;
+var soustable;
 var sousmain;
 
 initCanvas();
@@ -84,9 +84,13 @@ socket.on('Tourplifait',plifait);//(pli,no du ramasseur)
 //********************fonctions de jeu
 //Lancement de la partie
 function debutDeDonne (donneur,main){
+  for (let i in imagesCartes){
+    imagesCartes[i].set({enveted:false,id:-1});
+    canvas.remove(imagesCartes[i]);
+  }
   for (let i=0;i<main.length;i++){
     var carte=main[i].couleur+"_"+main[i].valeur;
-    imagesCartes[carte].set({left:100+i*90,top:540,evented:true,id:i, groupe:false, angle:0});
+    imagesCartes[carte].set({left:5*vw+(i+1)*10*vw,top:85*vh,evented:true,id:i, groupe:false, angle:0});
     canvas.add(imagesCartes[carte]);
   }
   canvas.renderAll();
@@ -120,10 +124,10 @@ function plifait(pli, no){
     if (no==(nojoueur+1)%4) {imagesCartes[pli[i].couleur+"_"+pli[i].valeur].animate({left:200,top:260+(20*i),angle:90},{duration: 1000, onChange: canvas.renderAll.bind(canvas)})};
     if (no==(nojoueur+2)%4) {imagesCartes[pli[i].couleur+"_"+pli[i].valeur].animate({left:360+(20*i),top:125,angle:0},{duration: 1000, onChange: canvas.renderAll.bind(canvas)})};
     if (no==(nojoueur+3)%4) {imagesCartes[pli[i].couleur+"_"+pli[i].valeur].animate({left:600,top:260+(20*i),angle:90},{duration: 1000, onChange: canvas.renderAll.bind(canvas)})};
-  */if (no==nojoueur){imagesCartes[pli[i].couleur+"_"+pli[i].valeur].set({left:360+(20*i),top:400,angle:0})};
-    if (no==(nojoueur+1)%4) {imagesCartes[pli[i].couleur+"_"+pli[i].valeur].set({left:200,top:260+(20*i),angle:90})};
-    if (no==(nojoueur+2)%4) {imagesCartes[pli[i].couleur+"_"+pli[i].valeur].set({left:360+(20*i),top:125,angle:0})};
-    if (no==(nojoueur+3)%4) {imagesCartes[pli[i].couleur+"_"+pli[i].valeur].set({left:600,top:260+(20*i),angle:90})};
+  */if (no==nojoueur){imagesCartes[pli[i].couleur+"_"+pli[i].valeur].set({left:(40+(5*i))*vw,top:50*vh,angle:0})};
+    if (no==(nojoueur+1)%4) {imagesCartes[pli[i].couleur+"_"+pli[i].valeur].set({left:30*vw,top:(25+(5*i))*vh,angle:90})};
+    if (no==(nojoueur+2)%4) {imagesCartes[pli[i].couleur+"_"+pli[i].valeur].set({left:(40+(5*i))*vw,top:20*vh,angle:0})};
+    if (no==(nojoueur+3)%4) {imagesCartes[pli[i].couleur+"_"+pli[i].valeur].set({left:70*vw,top:(25+(5*i))*vh,angle:90})};
   }
   imagePli=new fabric.Group();
   imagesCartes[pli[0].couleur+"_"+pli[0].valeur].clone(x=>{
@@ -149,16 +153,17 @@ function plifait(pli, no){
 
 //*********************initialisation du canvas
 function initCanvas (){
-  canvas.setDimensions({width:'100%',height:'100%'},{cssOnly: true});//TODO:Faire un canvas plus petit pour qu'il puisse être grossi+mettre à jour en fonction de la taille d'écran
-  hauteurfenetre=window.innerHeight;
-  largeurfenetre=window.innerWidth;
+  vh=window.innerHeight/100;
+  vw=window.innerWidth/100;
 
-  var soustable=new fabric.Rect({  width: 600, height: 400, fill: 'darkgreen', left: 100, top: 50, evented:false,hoverCursor:'default'});
+  canvas.setDimensions({width:100*vw,height:100*vh});
 
-  sousmain=new fabric.Rect({  width: 800, height: 120, fill: 'green', left: 0, top: 480, evented:false, hoverCursor:'default'});
-  jGauche=new fabric.Text("", { left: 50, top: 280, fontSize:16 , evented:false, originX: "center", originY: "center",hoverCursor:'default'});
-  jFace=new fabric.Text("", { left: 400, top: 25, fontSize:16, evented:false, originX: "center", originY: "center",hoverCursor:'default' });
-  jDroite= new fabric.Text("", { left: 750, top: 280, fontSize:16, evented:false, originX: "center", originY: "center",hoverCursor:'default' });
+  soustable=new fabric.Rect({  width: 70*vw, height: 60*vh, fill: 'darkgreen', left: 15*vw, top: 5*vh, evented:false,hoverCursor:'default'});
+
+  sousmain=new fabric.Rect({  width: 100*vw, height: 30*vh, fill: 'green', left: 0, top: 70*vh, evented:false, hoverCursor:'default'});
+  jGauche=new fabric.Text("", { left: 8*vw, top: 35*vh, fontSize:16 , evented:false, originX: "center", originY: "center",hoverCursor:'default'});
+  jFace=new fabric.Text("", { left: 50*vw, top: 3*vh, fontSize:16, evented:false, originX: "center", originY: "center",hoverCursor:'default' });
+  jDroite= new fabric.Text("", { left: 92*vw, top: 35*vh, fontSize:16, evented:false, originX: "center", originY: "center",hoverCursor:'default' });
 
   canvas.add(jGauche,jFace,jDroite);
   canvas.add(sousmain);
@@ -171,8 +176,8 @@ function initCanvas (){
       top: 0,
       originX: "center",
       originY: "center",
-      scaleX:(600/window.innerWidth)*(window.innerHeight/400)*(80/169),
-      scaleY:80/169,
+      scaleX:30*vh/169,
+      scaleY:30*vh/169,
       hasControls:false,
       hasBorders:false,
     });
@@ -184,8 +189,8 @@ function initCanvas (){
           top: 0,
           originX: "center",
           originY: "center",
-          scaleX:(600/window.innerWidth)*(window.innerHeight/400)*(80/169),
-          scaleY:80/169,
+          scaleX:30*vh/244,
+          scaleY:30*vh/244,
           hasControls:false,
           hasBorders:false,
           evented:false,
@@ -193,55 +198,68 @@ function initCanvas (){
         imagesCartes[couleurs[i]+"_"+valeurs[j]]=buf;
     }
   }
-  }
+}
 
-  //rediemnsionnement des cartes
+  //rediemnsionnement de l'écran
   window.onresize= function(){
   for (let i in imagesCartes){
-    var scale=imagesCartes[i].scaleX
-    imagesCartes[i].set({scaleX:scale*(largeurfenetre/window.innerWidth)*(window.innerHeight/hauteurfenetre)});
+    var scale=imagesCartes[i].scaleX;
+    var left=imagesCartes[i].left;
+    var top=imagesCartes[i].top;
+    imagesCartes[i].set({scaleX:scale*(window.innerHeight/(vh*100)),scaleY:scale*(window.innerHeight/(vh*100)),left:left*window.innerWidth/(100*vw),top:top*window.innerHeight/(vh*100)});
+    imagesCartes[i].setCoords();
   }
-  console.log(imagesCartes['spade_king'].scaleX,imagesCartes['spade_king'].scaleX*(largeurfenetre/window.innerWidth)*(window.innerHeight/hauteurfenetre));
-  hauteurfenetre=window.innerHeight;
-  largeurfenetre=window.innerWidth;
-  canvas.renderAll();  
+  if (imagePli){
+    var scale=imagePli.scaleX;
+    var left=imagePli.left;
+    var top=imagePli.top;
+    imagePli.set({scaleX:scale*(window.innerHeight/(vh*100)),scaleY:scale*(window.innerHeight/(vh*100)),left:left*window.innerWidth/(100*vw),top:top*window.innerHeight/(vh*100)});
+    imagePli.setCoords();
   }
+  vh=window.innerHeight/100;
+  vw=window.innerWidth/100;
+  canvas.setDimensions({width:100*vw,height:100*vh});
 
+  soustable.set({  width: 70*vw, height: 60*vh, fill: 'darkgreen', left: 15*vw, top: 5*vh, evented:false,hoverCursor:'default'});
+  soustable.setCoords();
+  sousmain.set({  width: 100*vw, height: 30*vh, fill: 'green', left: 0, top: 70*vh, evented:false, hoverCursor:'default'});
+  sousmain.setCoords();
+  jGauche.set({ left: 8*vw, top: 35*vh, fontSize:16 , evented:false, originX: "center", originY: "center",hoverCursor:'default'});
+  jGauche.setCoords();
+  jFace.set({ left: 50*vw, top: 3*vh, fontSize:16, evented:false, originX: "center", originY: "center",hoverCursor:'default' });
+  jFace.setCoords();
+  jDroite.set({ left: 92*vw, top: 35*vh, fontSize:16, evented:false, originX: "center", originY: "center",hoverCursor:'default' });
+  jDroite.setCoords();
 
-//callback pour ne laisser les cartes que sur sousmain
-function zoneSousMain(options){
-  if (options.target.top<=500){options.target.top=500;}
-  if (options.target.top>=600){options.target.top=600;}
+  canvas.renderAll();
+
+};
+
+//callback d'event
+zoneSousMain= function(options){
+  if (options.target.top<=75*vh){options.target.top=75*vh;}
+  if (options.target.top>=100*vh){options.target.top=100*vh;}
   if (options.target.left<=0){options.target.left=0;}
-  if (options.target.left>=800){options.target.left=800;}
+  if (options.target.left>=100*vw){options.target.left=100*vw;}
 }
-function zoneJouable(options){
-  if (options.target.top<=350){options.target.top=350;}
-  if (options.target.top>=600){options.target.top=600;}
+zoneJouable=function(options){
+  if (options.target.top<=40*vh){options.target.top=40*vh;}
+  if (options.target.top>=100*vh){options.target.top=100*vh;}
   if (options.target.left<=0){options.target.left=0;}
-  if (options.target.left>=800){options.target.left=800;}
-  if (options.target.top>=350 && options.target.top<=500){
-    if (options.target.left<=120){options.target.left=120;}
-    if (options.target.left>=680){options.target.left=680;}
+  if (options.target.left>=100*vw){options.target.left=100*vw;}
+  if (options.target.top>=40*vh && options.target.top<=75*vh){
+    if (options.target.left<=15*vw){options.target.left=15*vw;}
+    if (options.target.left>=85*vw){options.target.left=85*vw;}
     }
 }
-
-//Event de mouvements de imagesCartes
-for (let i=0;i<couleurs.length;i++) {
- for (let j=0;j<valeurs.length;j++){
-    imagesCartes[couleurs[i]+"_"+valeurs[j]].on('moving',zoneSousMain);
-  }
-}
-
-//Event de pose d'une carte et de relevé de pli
-canvas.on('mouse:up',options=>{
+cliques=function(options){
   if (options.target){
     if (options.target.groupe){//on clique sur un pli
       socket.emit('plireleve');
       canvas.remove(imagePli);
       canvas.renderAll();
     } else {
-    if (options.target.top<=450){
+    if (options.target.top<=70*vh){
       socket.emit('cartejouee',options.target.id);//on previent le serveur de la carte jouée
       sousmain.set({fill:'transparent'});
       options.target.evented=false;//on ne peut plus bouger la carte jouée
@@ -252,7 +270,17 @@ canvas.on('mouse:up',options=>{
      }
     }
   }
-});
+}
+
+//Event de mouvements de imagesCartes
+for (let i=0;i<couleurs.length;i++) {
+ for (let j=0;j<valeurs.length;j++){
+    imagesCartes[couleurs[i]+"_"+valeurs[j]].on('moving',zoneSousMain);
+  }
+}
+
+//Event de pose d'une carte et de relevé de pli
+canvas.on('mouse:up', cliques);
 
 //************************fonctions d'affichage
 //Affichage d'une page donnée
@@ -269,7 +297,9 @@ function affichePage (page){
   for (let i=0;i<dialogs.length;i++){
     if (page==dialogs[i]){
       document.getElementById('mainpage').style.display="block";
-      document.getElementById('formcontrat').reset();//on efface les données du formulaire
+      document.getElementById('valeurcontrat').selectedIndex=0;//on efface les données du formulaire
+      document.getElementsByName('couleurcontrat').forEach((obj)=>obj.checked=false);
+      document.getElementById('coinche').selectedIndex=0;
       document.getElementById(dialogs[i]+'page').style.display="block";
     } else {
       document.getElementById(dialogs[i]+'page').style.display="none";
@@ -322,15 +352,15 @@ function MAJsalle(salle){
 //on affiche la carte posée par un autre joueur
 function MAJcarteposee (carte,alamain){
   if (alamain==(nojoueur+1)%4) {
-    imagesCartes[carte.couleur+"_"+carte.valeur].set({left:200,top:280,angle:90});
+    imagesCartes[carte.couleur+"_"+carte.valeur].set({left:35*vw,top:35*vh,angle:90});
     canvas.add(imagesCartes[carte.couleur+"_"+carte.valeur]);
   };
   if (alamain==(nojoueur+2)%4) {
-    imagesCartes[carte.couleur+"_"+carte.valeur].set({left:400,top:125});
+    imagesCartes[carte.couleur+"_"+carte.valeur].set({left:50*vw,top:20*vh});
     canvas.add(imagesCartes[carte.couleur+"_"+carte.valeur]);
   };
   if (alamain==(nojoueur+3)%4) {
-    imagesCartes[carte.couleur+"_"+carte.valeur].set({left:600,top:280,angle:90});
+    imagesCartes[carte.couleur+"_"+carte.valeur].set({left:65*vw,top:35*vh,angle:90});
     canvas.add(imagesCartes[carte.couleur+"_"+carte.valeur]);
   };
 }

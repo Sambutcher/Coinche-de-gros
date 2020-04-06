@@ -1,5 +1,5 @@
 //init du serveur http et du socket (nécessite d'installer express et socket sur le serveur node)
-var express = require('express');
+/*var express = require('express');
 var app = express();
 var http = require('http').createServer(app);
 var io = require('socket.io')(http);
@@ -8,6 +8,11 @@ app.use(express.static(__dirname + '/public')); //sert les fichiers clients dans
 
 //lancement du serveur sur le port 3000
 http.listen(3000);
+*/
+var app = require('http').createServer();
+var io = require('socket.io')(app);
+app.listen(80);
+
 
 var table= new Table();
 var jeu;//tas de carte

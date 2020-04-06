@@ -47,17 +47,14 @@
         <!-- style="border:1px solid black"-->
       </div>
 
-      <dialog id="jeprendspage">
-        <form method="dialog" id='formjeprends'>
+      <div class="dialog" id="jeprendspage">
           <p>
             <button id="Redonner">Redonner</button>
             <button id="Jeprends">Je prends</button>
           </p>
-        </form>
-      </dialog>
+      </div>
 
-      <dialog id="annoncespage" >
-        <form method="dialog" id='formcontrat'>
+      <div class="dialog" id="annoncespage" >
         <p>Contrat:</p>
           <p><label>
             <select id="valeurcontrat">
@@ -100,11 +97,9 @@
         <p>
           <button id="OK">OK</button>
         </p>
-        </form>
-    </dialog>
+    </div>
 
-    <dialog id="scorepage" >
-      <form method="dialog" id='formscore'>
+    <div class="dialog" id="scorepage" >
       <p id='contrat'></p>
       <p id='compte'></p>
       <p>
@@ -120,8 +115,7 @@
         </table>
       </p>
       <p><button id="donneSuivante">Donne suivante</button></p>
-      </form>
-    </dialog>
+    </div>
 
     <div id="stockimages">
       <img src="/img/spade_1.png" id="spade_1" class="carte">
@@ -161,7 +155,6 @@
 
   </body>
 
-<script src="/dialog-polyfill.js"></script>
 <script src="/main.js"></script>
 
 </html>

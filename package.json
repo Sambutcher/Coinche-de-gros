@@ -1,0 +1,23 @@
+{
+  "name": "coinche-de-gros",
+  "version": "0.0.1",
+  "description": "",
+  "dependencies": {
+    "socket.io": "^2.3.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "start": "node app.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Sambutcher/Sambutcher.github.io.git"
+  },
+  "author": "Sam",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Sambutcher/Sambutcher.github.io/issues"
+  },
+  "homepage": "https://github.com/Sambutcher/Sambutcher.github.io#readme"
+}
