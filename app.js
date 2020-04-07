@@ -49,11 +49,6 @@ io.on('connection', function(socket){
     socket.broadcast.emit('MAJsalle', table.salle);
   });
 
-  //transmission des peers signal
-  socket.on('peer', (i, data)=>{
-    table.sockets[i].emit('peer',data);
-  });
-
   //Etat de la salle à la connection du client
   socket.emit('MAJsalle',table.salle);
 
