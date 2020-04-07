@@ -6,7 +6,7 @@ var io = require('socket.io')(http);
 
 app.use(express.static(__dirname + '/public')); //sert les fichiers clients dans le dossier "public"
 //lancement du serveur sur le port 3000
-http.listen(80);
+http.listen(process.env.PORT || 3000);
 
 /*
 var app = require('http').createServer();
