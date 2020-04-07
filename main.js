@@ -9,7 +9,7 @@ const valeurs=["1","king","queen","jack","10","9","8","7"];
 var nojoueur=(-1);//numéro de joueur
 var main;//main du joueur
 var table;//table en cours
-var socket = io();//connection au socket
+var socket = io('https://coinche-de-gros.herokuapp.com:3000');//connection au socket
 
 //*********init du canvas
 var canvas = new fabric.Canvas('c',{
