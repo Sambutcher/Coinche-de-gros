@@ -29,6 +29,9 @@ var sousmain;
 
 initCanvas();
 
+//********Init des peers
+var peer=[,,]; //gauche, face, droite
+
 //******Initialisation des boutons
 
 //Init login page: events de boutons
@@ -37,10 +40,18 @@ for (let i=0;i<4;i++){
     username = document.getElementById('joueur'+i).value;
     if (username==""){return};
     nojoueur=i;
+    //init des peers
+    if (jGauche.Text!=""){peer[0]= new SimplePeer({initiator:true})}
+    else {peer[0]= new SimplePeer({initiator:false})};
+    if (jFace.Text!=""){peer[1]= new SimplePeer({initiator:true})}
+    else {peer[1]= new SimplePeer({initiator:false})};
+    if (jDroite.Text!=""){peer[2]= new SimplePeer({initiator:true})}
+    else {peer[2]= new SimplePeer({initiator:false})};
+    initpeer();
     affichePage('main');
     socket.emit('add user', username, nojoueur);
-  }
-)}
+  })
+}
 
 //Init de contrat page: events de bouton
 document.getElementById('Jeprends').addEventListener('click',()=>{
@@ -81,6 +92,39 @@ socket.on('Tourdebut',debutDeDonne); //(donneur, main)
 socket.on('Touratoi',atoidejouer);//(No de joueur à jouer)
 socket.on('Tourplifait',plifait);//(pli,no du ramasseur)
 
+//*******evenements des peers
+function initpeer(){
+for (let i=0;i<3;i++){
+  p=peer[i];
+  p.on('signal', data => {
+      socket.emit('peer', (nojoueur+i+1)%4, JSON.stringify(data));
+  })
+
+  socket.on('peer',data=>{
+    p.signal(JSON.parse(data));
+  })
+
+  p.on('connect', () => {
+    console.log('envoi du stream')
+    navigator.mediaDevices.getUserMedia({
+      video: true,
+      audio: true
+    }).then((stream)=>{p.addStream(stream)}).catch(() => {})
+  })
+
+  p.on('stream', stream => {
+    var audio = document.getElementById('audio'+i);
+
+    if ('srcObject' in audio) {
+      audio.srcObject = stream
+    } else {
+      audio.src = window.URL.createObjectURL(stream) // for older browsers
+    }
+
+    audio.play()
+  })
+}
+}
 //********************fonctions de jeu
 //Lancement de la partie
 function debutDeDonne (donneur,main){

@@ -49,6 +49,11 @@ io.on('connection', function(socket){
     socket.broadcast.emit('MAJsalle', table.salle);
   });
 
+  //transmission des peers signal
+  socket.on('peer', (i, data)=>{
+    table.sockets[i].emit('peer',data);
+  });
+
   //Etat de la salle à la connection du client
   socket.emit('MAJsalle',table.salle);
 
@@ -256,33 +261,33 @@ function Donne(donneur){
 
   //compte les points des plis
   function MAJcompte(){
-    for (let i=0;i<2;i++){
+    for (let i=0;i<4;i++){
       for (let j=0;j<this.plis[i].length;j++){
         carte=this.plis[i][j];
         switch(carte.valeur){
           case "jack":
           if ((this.contrat[1]=="TA")||(carte.couleur==this.contrat[1])){
-            this.compte[i]+=20;
+            this.compte[i%2]+=20;
           } else {
-            this.compte[i]+=2;
+            this.compte[i%2]+=2;
           }
           break;
           case "9":
           if ((this.contrat[1]=="TA")||(carte.couleur==this.contrat[1])){
-            this.compte[i]+=14;
+            this.compte[i%2]+=14;
           }
           break;
           case "1":
-          this.compte[i]+=11;
+          this.compte[i%2]+=11;
           break;
           case "10":
-          this.compte[i]+=10;
+          this.compte[i%2]+=10;
           break;
           case "king":
-          this.compte[i]+=4;
+          this.compte[i%2]+=4;
           break;
           case "queen":
-          this.compte[i]+=3;
+          this.compte[i%2]+=3;
           break;
         }
       }
