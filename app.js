@@ -3,16 +3,18 @@ var express = require('express');
 var app = express();
 var http = require('http').createServer(app);
 var io = require('socket.io')(http);
+var session = require("express-session")({
+    secret: "my-secret",
+    resave: true,
+    saveUninitialized: true
+});
+var cookie=require('cookie');
 
-app.use(express.static(__dirname + '/Public')); //sert les fichiers clients dans le dossier "public"
+app.use(session);
+app.use(express.static(__dirname + '/Public')); //sert les fichiers clients dans le dossier "public
+
 //lancement du serveur sur le port 3000
 http.listen(process.env.PORT || 3000);
-
-/*
-var app = require('http').createServer();
-var io = require('socket.io')(app);
-app.listen(3000);*/
-
 
 var table= new Table();
 var jeu;//tas de carte
@@ -23,7 +25,7 @@ const valeurs=["1","king","queen","jack","10","9","8","7"];
 
 //***evenements du serveur***
 
-//TODO: téléconférence, reprendre sa carte, regarder le pli précédent,
+//TODO: reprendre sa carte, regarder le pli précédent, faute de jeu
 
 //connection d'un client sur le socket
 io.on('connection', function(socket){
@@ -34,6 +36,43 @@ io.on('connection', function(socket){
     socket.disconnect(true);
   } else {++table.numUsers;};
 
+//teste si le joueur a refresh
+  var indCookie=table.cookies.id.indexOf(cookie.parse(socket.handshake.headers.cookie)['connect.sid']);
+  if (indCookie!=-1){
+    nojoueur=indCookie;
+    socket.nojoueur = nojoueur;
+    table.salle[nojoueur] = table.cookies.name[nojoueur];
+    table.sockets[nojoueur]=socket;
+    table.cookies.id[nojoueur]=cookie.parse(socket.handshake.headers.cookie)['connect.sid'];
+    socket.emit('MAJsalle',table.salle);
+    if (donne){
+      //recalcul de l'état (main du joueur, qui doit jouer)
+      main=donne['main'+nojoueur];
+      plis=donne.plis[0].concat(donne.plis[2], donne.plis[1], donne.plis[3]);
+      for (let i=0;i<main.length;i++){
+        for (let j=0;j<plis.length;j++){
+          if (main[i]==plis[j]) {
+              main.splice(i,1);
+          }
+        }
+      };
+      //Chercher le joueru a jouer dans le pli
+      joueur=donne.alamain;
+      for (let i=0;i<4;i++){
+        if (pli[(joueur+i)%4]==(-1)){
+          joueur=(joueur+i)%4;
+          break;
+        }
+      };
+
+      if (pli.every(e=>e!=(-1))) {
+        joueur=donne.ramasseur(pli);
+        socket.emit('Tourplifait',[donne.main0[pli[0]],donne.main1[pli[1]],donne.main2[pli[2]],donne.main3[pli[3]]],donne.ramasseur(pli));
+      };
+      socket.emit('Refresh', socket.nojoueur, main, joueur);
+  } else {addUser(table.salle[nojoueur],nojoueur)};
+}
+
   // Quand quelqu'un se déconnecte
   socket.on('disconnect', () => {
     --table.numUsers;
@@ -41,11 +80,6 @@ io.on('connection', function(socket){
       table.salle[socket.nojoueur]="";
       table.sockets[socket.nojoueur]=undefined;
     };
-    if (donne){//si partie en cours, on tue tout
-      socket.broadcast.emit('Page','login');
-      table=new Table();
-      pli=pli=[-1,-1,-1,-1];
-    }
     socket.broadcast.emit('MAJsalle', table.salle);
   });
 
@@ -53,10 +87,14 @@ io.on('connection', function(socket){
   socket.emit('MAJsalle',table.salle);
 
   // Inscription d'un joueur dans la salle et lancement de la partie
-  socket.on('add user', (username,nojoueur) => {
+  socket.on('add user', addUser);
+
+function addUser(username,nojoueur) {
     socket.nojoueur = nojoueur;
     table.salle[nojoueur] = username;
     table.sockets[nojoueur]=socket;
+    table.cookies.id[nojoueur]=cookie.parse(socket.handshake.headers.cookie)['connect.sid'];
+    table.cookies.name[nojoueur]=username;
     io.emit('MAJsalle',table.salle);//on previent tout le monde
     socket.emit('Page','main');
     if (table.salle[0]!="" && table.salle[1]!="" && table.salle[2]!="" && table.salle[3]!=""){//lancement de la partie
@@ -66,8 +104,7 @@ io.on('connection', function(socket){
       donne.distribuer(jeu);
       debutDeDonne();
     };
-  });
-
+  }
 
   socket.on('Jeprends',()=>{
     socket.broadcast.emit('Page','main');
@@ -344,6 +381,7 @@ function Table (){
   this.numUsers=0;//nombre de personne qui ouvrent un socket
   this.salle=["","","",""];//nom des joueurs
   this.sockets=[,,,];//sockets des joueurs
+  this.cookies={'id':[,,,],'name':[,,,]};//cookie des joueurs et nom associé
   this.points=[0,0];//suivi des totaux
   this.flagDonneSuivante=0;//pour savoir si tout le monde est ok pour passer à la donne suivante
   this.finDeDonne=finDeDonne;//met à jour les scores et le flag

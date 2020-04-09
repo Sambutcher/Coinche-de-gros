@@ -1,14 +1,13 @@
 window.addEventListener('load',()=>{
 
 
-//TODO: animations, resize
+
 fabric.Object.prototype.objectCaching = false;//Empeche le caching pour la librairie fabric
 
 const couleurs=["spade","heart","diamond","club"];
 const valeurs=["1","king","queen","jack","10","9","8","7"];
 var nojoueur=(-1);//numéro de joueur
 var main;//main du joueur
-var table;//table en cours
 var socket = io();//connection au socket
 
 //*********init du canvas
@@ -60,6 +59,10 @@ document.getElementById('OK').addEventListener('click',()=>{
   };
   affichePage('main');
 })
+document.getElementById('Annule').addEventListener('click',()=>{
+  socket.emit('Redonner');
+  affichePage('main');
+})
 document.getElementById('Redonner').addEventListener('click',()=>{
   socket.emit('Redonner');
   document.getElementById('Redonner').style.display="none";
@@ -81,20 +84,12 @@ socket.on('MAJscores',MAJscores); //(contrat,compte,scores)
 socket.on('Tourdebut',debutDeDonne); //(donneur, main)
 socket.on('Touratoi',atoidejouer);//(No de joueur à jouer)
 socket.on('Tourplifait',plifait);//(pli,no du ramasseur)
+socket.on('Refresh',refresh);// (nojoueur, main,joueur qui doit poser une carte)
 
 //********************fonctions de jeu
 //Lancement de la partie
 function debutDeDonne (donneur,main){
-  for (let i in imagesCartes){
-    imagesCartes[i].set({enveted:false,id:-1});
-    canvas.remove(imagesCartes[i]);
-  }
-  for (let i=0;i<main.length;i++){
-    var carte=main[i].couleur+"_"+main[i].valeur;
-    imagesCartes[carte].set({left:5*vw+(i+1)*10*vw,top:85*vh,evented:true,id:i, groupe:false, angle:0});
-    canvas.add(imagesCartes[carte]);
-  }
-  canvas.renderAll();
+  afficheMain(main);
   afficheJoueurActif((donneur+1)%4);
   affichePage('jeprends');
   if (nojoueur==donneur){
@@ -117,39 +112,60 @@ function atoidejouer(joueur){
   canvas.renderAll();
 }
 
+function refresh(noj,main,joueur){
+  nojoueur=noj;
+  affichePage('main');
+  afficheJoueurActif(joueur);
+  afficheMain(main);
+  if (joueur==nojoueur){
+    canvas.forEachObject((object)=>{//rend les cartes bougeables sur le tapis
+      object.off('moving',zoneSousMain);
+      object.on('moving',zoneJouable);
+    });
+  }
+  canvas.renderAll();
+}
+
 //un pli est fait et doit être ramassé
 function plifait(pli, no){
   afficheJoueurActif(no);
+
   for (let i=0;i<4;i++){
-  /*  TODO: if (no==nojoueur){imagesCartes[pli[i].couleur+"_"+pli[i].valeur].animate({left:360+(20*i),top:400,angle:0},{duration: 1000, onChange: canvas.renderAll.bind(canvas)})};
-    if (no==(nojoueur+1)%4) {imagesCartes[pli[i].couleur+"_"+pli[i].valeur].animate({left:200,top:260+(20*i),angle:90},{duration: 1000, onChange: canvas.renderAll.bind(canvas)})};
-    if (no==(nojoueur+2)%4) {imagesCartes[pli[i].couleur+"_"+pli[i].valeur].animate({left:360+(20*i),top:125,angle:0},{duration: 1000, onChange: canvas.renderAll.bind(canvas)})};
-    if (no==(nojoueur+3)%4) {imagesCartes[pli[i].couleur+"_"+pli[i].valeur].animate({left:600,top:260+(20*i),angle:90},{duration: 1000, onChange: canvas.renderAll.bind(canvas)})};
-  */if (no==nojoueur){imagesCartes[pli[i].couleur+"_"+pli[i].valeur].set({left:(40+(5*i))*vw,top:50*vh,angle:0})};
+    if (no==nojoueur){imagesCartes[pli[i].couleur+"_"+pli[i].valeur].animate({left:(40+(5*i))*vw,top:50*vh,angle:0},{duration: 1000, onChange: canvas.renderAll.bind(canvas)})};
+    if (no==(nojoueur+1)%4) {imagesCartes[pli[i].couleur+"_"+pli[i].valeur].animate({left:30*vw,top:(25+(5*i))*vh,angle:90},{duration: 1000, onChange: canvas.renderAll.bind(canvas)})};
+    if (no==(nojoueur+2)%4) {imagesCartes[pli[i].couleur+"_"+pli[i].valeur].animate({left:(40+(5*i))*vw,top:20*vh,angle:0},{duration: 1000, onChange: canvas.renderAll.bind(canvas)})};
+    if (no==(nojoueur+3)%4) {imagesCartes[pli[i].couleur+"_"+pli[i].valeur].animate({left:70*vw,top:(25+(5*i))*vh,angle:90},{duration: 1000, onChange: canvas.renderAll.bind(canvas)})};
+  }
+  /*for (let i=0;i<4;i++){
+    if (no==nojoueur){imagesCartes[pli[i].couleur+"_"+pli[i].valeur].set({left:(40+(5*i))*vw,top:50*vh,angle:0})};
     if (no==(nojoueur+1)%4) {imagesCartes[pli[i].couleur+"_"+pli[i].valeur].set({left:30*vw,top:(25+(5*i))*vh,angle:90})};
     if (no==(nojoueur+2)%4) {imagesCartes[pli[i].couleur+"_"+pli[i].valeur].set({left:(40+(5*i))*vw,top:20*vh,angle:0})};
     if (no==(nojoueur+3)%4) {imagesCartes[pli[i].couleur+"_"+pli[i].valeur].set({left:70*vw,top:(25+(5*i))*vh,angle:90})};
-  }
-  imagePli=new fabric.Group();
-  imagesCartes[pli[0].couleur+"_"+pli[0].valeur].clone(x=>{
-    imagePli.addWithUpdate(x);
-    imagesCartes[pli[1].couleur+"_"+pli[1].valeur].clone(x=>{
+  }*/
+  setTimeout(()=>{
+    canvas.renderAll();
+    imagePli=new fabric.Group();
+    imagesCartes[pli[0].couleur+"_"+pli[0].valeur].clone(x=>{
       imagePli.addWithUpdate(x);
-      imagesCartes[pli[2].couleur+"_"+pli[2].valeur].clone(x=>{
+      imagesCartes[pli[1].couleur+"_"+pli[1].valeur].clone(x=>{
         imagePli.addWithUpdate(x);
-        imagesCartes[pli[3].couleur+"_"+pli[3].valeur].clone(x=>{
+        imagesCartes[pli[2].couleur+"_"+pli[2].valeur].clone(x=>{
           imagePli.addWithUpdate(x);
-          imagePli.set({hasControls:false,hasBorders:false,groupe:true});
-          if (no!=nojoueur){imagePli.set({evented:false})};
-          canvas.add(imagePli);
+          imagesCartes[pli[3].couleur+"_"+pli[3].valeur].clone(x=>{
+            imagePli.addWithUpdate(x);
+            imagePli.set({hasControls:false,hasBorders:false,groupe:true});
+            if (no!=nojoueur){imagePli.set({evented:false})};
+            canvas.add(imagePli);
+          })
         })
       })
     })
-  })
-  for (let i=0;i<4;i++){
-    canvas.remove(imagesCartes[pli[i].couleur+"_"+pli[i].valeur]);
-  }
-  canvas.renderAll();
+    for (let i=0;i<4;i++){
+      canvas.remove(imagesCartes[pli[i].couleur+"_"+pli[i].valeur]);
+    }
+    canvas.renderAll();
+  },1000);
+
 };
 
 //*********************initialisation du canvas
@@ -323,15 +339,27 @@ function afficheJoueurActif(nojoueuractif){
   canvas.renderAll();
 }
 
+function afficheMain(main){
+for (let i in imagesCartes){
+  imagesCartes[i].set({evented:false,id:-1,angle:0});
+  canvas.remove(imagesCartes[i]);
+}
+for (let i=0;i<main.length;i++){
+  var carte=main[i].couleur+"_"+main[i].valeur;
+  imagesCartes[carte].set({left:5*vw+(i+1)*10*vw,top:85*vh,evented:true,id:i, groupe:false, angle:0});
+  canvas.add(imagesCartes[carte]);
+}
+canvas.renderAll();
+};
+
 //Met à jour des joueurs
 function MAJsalle(salle){
   //MAJ de la salle d'attente
   for (let i=0;i<4;i++){
-    document.getElementById('joueur'+i).value=salle[i];
-
     if (salle[i]!="") {
       document.getElementById('Entrer'+i).style.display="none";
       document.getElementById('joueur'+i).disabled=true;
+      document.getElementById('joueur'+i).value=salle[i];
     } else {
       document.getElementById('Entrer'+i).style.display='initial';
       document.getElementById('joueur'+i).disabled=false;
