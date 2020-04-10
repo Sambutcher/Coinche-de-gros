@@ -279,7 +279,7 @@ function Donne(donneur){
   }
   //chercher la belote et mettre à jour le compte
   function isBelote(){
-    if (contrat[0]=='Capot'||contrat[0]=='Générale'){return};//pas de belote sur capots et générale
+    if (this.contrat[0]=='Capot'||this.contrat[0]=='Générale'){return};//pas de belote sur capots et générale
     for (let j=0;j<4;j=j+2){
       var res=0;
       var main=this['main'+((this.contrat[3]+j) %4)];//main du preneur puis de son equipier
@@ -293,7 +293,7 @@ function Donne(donneur){
 
   //compte les points des plis
   function MAJcompte(){
-  //  this.isBelote();//on compte la belote
+   this.isBelote();//on compte la belote
     for (let i=0;i<4;i++){
       for (let j=0;j<this.plis[i].length;j++){
         carte=this.plis[i][j];
