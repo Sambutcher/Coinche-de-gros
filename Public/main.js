@@ -341,13 +341,16 @@ function afficheJoueurActif(nojoueuractif){
 
 function afficheMain(main){
 for (let i in imagesCartes){
-  imagesCartes[i].set({evented:false,id:-1,angle:0});
+  imagesCartes[i].set({evented:false,id:(-1),angle:0});
   canvas.remove(imagesCartes[i]);
 }
 for (let i=0;i<main.length;i++){
   var carte=main[i].couleur+"_"+main[i].valeur;
   imagesCartes[carte].set({left:5*vw+(i+1)*10*vw,top:85*vh,evented:true,id:i, groupe:false, angle:0});
   canvas.add(imagesCartes[carte]);
+}
+for (let i in imagesCartes){
+  imagesCartes[i].setCoords();
 }
 canvas.renderAll();
 };

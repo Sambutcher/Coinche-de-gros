@@ -25,7 +25,7 @@ const valeurs=["1","king","queen","jack","10","9","8","7"];
 
 //***evenements du serveur***
 
-//TODO: reprendre sa carte, regarder le pli précédent, faute de jeu
+//TODO: reprendre sa carte, regarder le pli précédent, faute de jeu, sur annule et redonne, afficher les cartes
 
 //connection d'un client sur le socket
 io.on('connection', function(socket){
@@ -44,7 +44,7 @@ io.on('connection', function(socket){
     table.salle[nojoueur] = table.cookies.name[nojoueur];
     table.sockets[nojoueur]=socket;
     table.cookies.id[nojoueur]=cookie.parse(socket.handshake.headers.cookie)['connect.sid'];
-    socket.emit('MAJsalle',table.salle);
+    io.emit('MAJsalle',table.salle);
     if (donne){
       //recalcul de l'état (main du joueur, qui doit jouer)
       main=donne['main'+nojoueur];
@@ -199,8 +199,8 @@ function Jeu(){
   function melanger(){
     j=this.liste;
     for (let i = j.length - 1; i > 0; i--) {
-        const k = Math.floor(Math.random() * (i + 1));
-        [j[i], j[k]] = [j[k], jeu[i]];
+        let k = Math.floor(Math.random() * (i + 1));
+        [j[i], j[k]] = [j[k], j[i]];
     }
     this.liste=j;
   }
@@ -282,17 +282,18 @@ function Donne(donneur){
     if (contrat[0]=='Capot'||contrat[0]=='Générale'){return};//pas de belote sur capots et générale
     for (let j=0;j<4;j=j+2){
       var res=0;
-      var main=this['main'+((this.contrat[3]+j) %4)];
+      var main=this['main'+((this.contrat[3]+j) %4)];//main du preneur puis de son equipier
       for (let i=0;i<main.length;i++){
         if ((main[i].couleur==this.contrat[1])&&(main[i].valeur=='king')){res++};
         if ((main[i].couleur==this.contrat[1])&&(main[i].valeur=='queen')){res++};
       }
-      if (res==2){this.compte[(this.contrat[3] %2)]+=20};
+      if (res==2){this.compte[(this.contrat[3])%2]+=20};
     }
   }
 
   //compte les points des plis
   function MAJcompte(){
+    this.isBelote();//on compte la belote
     for (let i=0;i<4;i++){
       for (let j=0;j<this.plis[i].length;j++){
         carte=this.plis[i][j];
