@@ -293,7 +293,7 @@ function Donne(donneur){
 
   //compte les points des plis
   function MAJcompte(){
-    this.isBelote();//on compte la belote
+  //  this.isBelote();//on compte la belote
     for (let i=0;i<4;i++){
       for (let j=0;j<this.plis[i].length;j++){
         carte=this.plis[i][j];
