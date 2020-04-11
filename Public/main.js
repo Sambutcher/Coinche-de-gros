@@ -152,20 +152,19 @@ function plifait(pli, no){
         imagesCartes[pli[2].couleur+"_"+pli[2].valeur].clone(x=>{
           imagePli.addWithUpdate(x);
           imagesCartes[pli[3].couleur+"_"+pli[3].valeur].clone(x=>{
+            for (let i=0;i<4;i++){
+              canvas.remove(imagesCartes[pli[i].couleur+"_"+pli[i].valeur]);
+            }
             imagePli.addWithUpdate(x);
             imagePli.set({hasControls:false,hasBorders:false,groupe:true});
             if (no!=nojoueur){imagePli.set({evented:false})};
             canvas.add(imagePli);
+            canvas.renderAll();
           })
         })
       })
     })
-    for (let i=0;i<4;i++){
-      canvas.remove(imagesCartes[pli[i].couleur+"_"+pli[i].valeur]);
-    }
-    canvas.renderAll();
   },1000);
-
 };
 
 //*********************initialisation du canvas
@@ -302,7 +301,7 @@ canvas.on('mouse:up', cliques);
 //************************fonctions d'affichage
 //Affichage d'une page donnée
 function affichePage (page){
-  var pages=['login','close','main'];// Pages disponibles
+  var pages=['login',/*'close',*/'main'];// Pages disponibles
   var dialogs=['annonces','score','jeprends'] ;//fenetres de dialogue
   for (let i=0;i<pages.length;i++){
     if (page==pages[i]){

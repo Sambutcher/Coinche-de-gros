@@ -30,13 +30,13 @@ const valeurs=["1","king","queen","jack","10","9","8","7"];
 //connection d'un client sur le socket
 io.on('connection', function(socket){
 
-  //refus au bout du 4ème dans la salle d'attente
+/*  //refus au bout du 4ème dans la salle d'attente
   if (table.numUsers>3) {
     socket.emit('Page','close');
     socket.disconnect(true);
   } else {++table.numUsers;};
-
-//teste si le joueur a refresh
+*/
+  //teste si le joueur a refresh
   var indCookie=table.cookies.id.indexOf(cookie.parse(socket.handshake.headers.cookie)['connect.sid']);
   if (indCookie!=-1){
     nojoueur=indCookie;
@@ -70,12 +70,12 @@ io.on('connection', function(socket){
         socket.emit('Tourplifait',[donne.main0[pli[0]],donne.main1[pli[1]],donne.main2[pli[2]],donne.main3[pli[3]]],donne.ramasseur(pli));
       };
       socket.emit('Refresh', socket.nojoueur, main, joueur);
-  } else {addUser(table.salle[nojoueur],nojoueur)};
-}
+    } else {addUser(table.salle[nojoueur],nojoueur)};
+  }
 
   // Quand quelqu'un se déconnecte
   socket.on('disconnect', () => {
-    --table.numUsers;
+    //--table.numUsers;
     if (socket.nojoueur||(socket.nojoueur==0)){
       table.salle[socket.nojoueur]="";
       table.sockets[socket.nojoueur]=undefined;
@@ -379,7 +379,7 @@ function Table (){
     this.flagDonneSuivante=0;
   }
 
-  this.numUsers=0;//nombre de personne qui ouvrent un socket
+  //this.numUsers=0;//nombre de personne qui ouvrent un socket
   this.salle=["","","",""];//nom des joueurs
   this.sockets=[,,,];//sockets des joueurs
   this.cookies={'id':[,,,],'name':[,,,]};//cookie des joueurs et nom associé
