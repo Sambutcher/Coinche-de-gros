@@ -130,18 +130,13 @@ function refresh(noj,main,joueur){
 function plifait(pli, no){
   afficheJoueurActif(no);
 
+  //TODO: utiliser onComplete pour ne faire qu'une anim et enchainer sur la suite.
   for (let i=0;i<4;i++){
     if (no==nojoueur){imagesCartes[pli[i].couleur+"_"+pli[i].valeur].animate({left:(40+(5*i))*vw,top:50*vh,angle:0},{duration: 1000, onChange: canvas.renderAll.bind(canvas)})};
     if (no==(nojoueur+1)%4) {imagesCartes[pli[i].couleur+"_"+pli[i].valeur].animate({left:30*vw,top:(25+(5*i))*vh,angle:90},{duration: 1000, onChange: canvas.renderAll.bind(canvas)})};
     if (no==(nojoueur+2)%4) {imagesCartes[pli[i].couleur+"_"+pli[i].valeur].animate({left:(40+(5*i))*vw,top:20*vh,angle:0},{duration: 1000, onChange: canvas.renderAll.bind(canvas)})};
     if (no==(nojoueur+3)%4) {imagesCartes[pli[i].couleur+"_"+pli[i].valeur].animate({left:70*vw,top:(25+(5*i))*vh,angle:90},{duration: 1000, onChange: canvas.renderAll.bind(canvas)})};
   }
-  /*for (let i=0;i<4;i++){
-    if (no==nojoueur){imagesCartes[pli[i].couleur+"_"+pli[i].valeur].set({left:(40+(5*i))*vw,top:50*vh,angle:0})};
-    if (no==(nojoueur+1)%4) {imagesCartes[pli[i].couleur+"_"+pli[i].valeur].set({left:30*vw,top:(25+(5*i))*vh,angle:90})};
-    if (no==(nojoueur+2)%4) {imagesCartes[pli[i].couleur+"_"+pli[i].valeur].set({left:(40+(5*i))*vw,top:20*vh,angle:0})};
-    if (no==(nojoueur+3)%4) {imagesCartes[pli[i].couleur+"_"+pli[i].valeur].set({left:70*vw,top:(25+(5*i))*vh,angle:90})};
-  }*/
   setTimeout(()=>{
     canvas.renderAll();
     imagePli=new fabric.Group();
