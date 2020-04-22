@@ -3,8 +3,13 @@
   <head>
     <meta charset="utf-8" />
     <title>Coinche</title>
-    <link rel="icon" href="favicon.ico">
+    <link rel="icon" href="favicon.png">
+      <link rel="apple-touch-icon" href="favicon.png">
     <link rel="stylesheet" href="style.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-title" content="Coinche">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.0.3/socket.io.js"></script>
     <script src="fabric.js"></script>
 
@@ -12,7 +17,7 @@
 
   <body >
 
-      <div id="loginpage">
+      <div id="loginpage" class="page">
          <div class="lpjoueur0">
             Joueur 1:<BR>
             <input id="joueur0" type="text" maxlength="14" />
@@ -39,26 +44,24 @@
 
       </div>
 
-    <!--  <div id="closepage">
-        Salle pleine!
-      </div> -->
-
-      <div id="mainpage" >
-        <audio id='audio0'></audio>
-        <audio id='audio1'></audio>
-        <audio id='audio2'></audio>
+      <div id="mainpage" class="page">
         <canvas id="c" width="800" height="600" ></canvas>
-        <!-- style="border:1px solid black"-->
       </div>
 
-      <div class="dialog" id="jeprendspage">
+      <div class="dialog" id="annonces">
           <p>
-            <button id="Redonner">Redonner</button>
             <button id="Jeprends">Je prends</button>
+            <button id="Redonner">Redonner</button>
           </p>
       </div>
 
-      <div class="dialog" id="annoncespage" >
+      <div class="dialog" id="annule">
+          <p>
+            <button id="Annule">J'annule</button>
+          </p>
+      </div>
+
+      <div class="dialog" id="saisiecontrat" >
         <p>Contrat:</p>
           <p><label>
             <select id="valeurcontrat">
@@ -78,18 +81,24 @@
             </select>
           </label></p>
         <p>
-          <input type="radio" name="couleurcontrat" value="spade">
-          <label style="color:black">&spades;</label>
-          <input type="radio" name="couleurcontrat" value="heart">
-          <label style="color:red">&hearts;</label>
-          <input type="radio" name="couleurcontrat" value="diamond">
-          <label style="color:red">&diams;</label>
-          <input type="radio" name="couleurcontrat" value="club">
-          <label style="color:black">&clubs;</label>
-          <input type="radio" name="couleurcontrat" value="SA">
-          <label style="color:black">SA</label>
-          <input type="radio" name="couleurcontrat" value="TA">
-          <label style="color:black">TA</label>
+          <table>
+            <tr>
+              <td><label style="color:black">&spades;</label></td>
+              <td><label style="color:red">&hearts;</label></td>
+              <td><label style="color:red">&diams;</label></td>
+              <td><label style="color:black">&clubs;</label></td>
+              <td><label style="color:black">SA</label></td>
+              <td><label style="color:black">TA</label></td>
+            </tr>
+            <tr>
+              <td><input type="radio" name="couleurcontrat" value="spade"></td>
+              <td><input type="radio" name="couleurcontrat" value="heart"></td>
+              <td><input type="radio" name="couleurcontrat" value="diamond"></td>
+              <td><input type="radio" name="couleurcontrat" value="club"></td>
+              <td><input type="radio" name="couleurcontrat" value="SA"></td>
+              <td><input type="radio" name="couleurcontrat" value="TA"></td>
+            </tr>
+          </table>
         </p>
         <p><label>
         <select id="coinche">
@@ -100,13 +109,12 @@
         </label></p>
         <p>
           <button id="OK">OK</button>
-          <button id="Annule">Annulée</button>
         </p>
     </div>
 
-    <div class="dialog" id="scorepage" >
-      <p id='contrat'></p>
-      <p id='compte'></p>
+    <div class="dialog" id="scores" >
+      <p id='contrat'>C</p>
+      <p id='compte'>C</p>
       <p>
         <table>
           <tr>
@@ -114,8 +122,8 @@
             <th id='equipe1'>Equipe1</th>
           </tr>
           <tr>
-            <td id='score0'></td>
-            <td id='score1'></td>
+            <td id='score0'>D</td>
+            <td id='score1'>D</td>
           </tr>
         </table>
       </p>
@@ -123,42 +131,23 @@
     </div>
 
     <div id="stockimages">
-      <img src="/img/spade_1.png" id="spade_1" class="carte">
-      <img src="/img/spade_king.png" id="spade_king" class="carte">
-      <img src="/img/spade_queen.png" id="spade_queen" class="carte">
-      <img src="/img/spade_jack.png" id="spade_jack" class="carte">
-      <img src="/img/spade_10.png" id="spade_10" class="carte">
-      <img src="/img/spade_9.png" id="spade_9" class="carte">
-      <img src="/img/spade_8.png" id="spade_8" class="carte">
-      <img src="/img/spade_7.png" id="spade_7" class="carte">
-      <img src="/img/heart_1.png" id="heart_1" class="carte">
-      <img src="/img/heart_king.png" id="heart_king" class="carte">
-      <img src="/img/heart_queen.png" id="heart_queen" class="carte">
-      <img src="/img/heart_jack.png" id="heart_jack" class="carte">
-      <img src="/img/heart_10.png" id="heart_10" class="carte">
-      <img src="/img/heart_9.png" id="heart_9" class="carte">
-      <img src="/img/heart_8.png" id="heart_8" class="carte">
-      <img src="/img/heart_7.png" id="heart_7" class="carte">
-      <img src="/img/diamond_1.png" id="diamond_1" class="carte">
-      <img src="/img/diamond_king.png" id="diamond_king" class="carte">
-      <img src="/img/diamond_queen.png" id="diamond_queen" class="carte">
-      <img src="/img/diamond_jack.png" id="diamond_jack" class="carte">
-      <img src="/img/diamond_10.png" id="diamond_10" class="carte">
-      <img src="/img/diamond_9.png" id="diamond_9" class="carte">
-      <img src="/img/diamond_8.png" id="diamond_8" class="carte">
-      <img src="/img/diamond_7.png" id="diamond_7" class="carte">
-      <img src="/img/club_1.png" id="club_1" class="carte">
-      <img src="/img/club_king.png" id="club_king" class="carte">
-      <img src="/img/club_queen.png" id="club_queen" class="carte">
-      <img src="/img/club_jack.png" id="club_jack" class="carte">
-      <img src="/img/club_10.png" id="club_10" class="carte">
-      <img src="/img/club_9.png" id="club_9" class="carte">
-      <img src="/img/club_8.png" id="club_8" class="carte">
-      <img src="/img/club_7.png" id="club_7" class="carte">
       <img src="/img/back.png" id="back" class="carte">
     </div>
 
   </body>
+
+<script type="text/javascript">
+const couleurs=["spade","heart","diamond","club"];
+const valeurs=["1","king","queen","jack","10","9","8","7"];
+
+couleurs.map(couleur=>{
+  valeurs.map(valeur=>{
+    var tag='<img src="/img/'+couleur+'_'+valeur+'.png" id="'+couleur+'_'+valeur+'" class="carte">';
+    document.getElementById('stockimages').insertAdjacentHTML('afterbegin', tag);
+  })
+})
+
+</script>
 
 <script src="/main.js"></script>
 

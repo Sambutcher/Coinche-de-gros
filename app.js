@@ -16,252 +16,292 @@ app.use(express.static(__dirname + '/Public')); //sert les fichiers clients dans
 //lancement du serveur sur le port 3000
 http.listen(process.env.PORT || 3000);
 
-var table= new Table();
-var jeu;//tas de carte
-var donne; //suivi de la donne en cours
-var pli=[-1,-1,-1,-1];//pli en cours: n0 de carte dans la main du joueur
-const couleurs=["spade","heart","diamond","club"];
-const valeurs=["1","king","queen","jack","10","9","8","7"];
+var game=new Game();
 
-//***evenements du serveur***
+//connections et déconnections
+io.on('connection',socket=>{
 
-//TODO: reprendre sa carte, regarder le pli précédent, faute de jeu, sur annule et redonne, afficher les cartes
-
-//connection d'un client sur le socket
-io.on('connection', function(socket){
-
-/*  //refus au bout du 4ème dans la salle d'attente
-  if (table.numUsers>3) {
-    socket.emit('Page','close');
-    socket.disconnect(true);
-  } else {++table.numUsers;};
-*/
-  //teste si le joueur a refresh
-  var indCookie=table.cookies.id.indexOf(cookie.parse(socket.handshake.headers.cookie)['connect.sid']);
-  if (indCookie!=-1){
-    nojoueur=indCookie;
-    socket.nojoueur = nojoueur;
-    table.salle[nojoueur] = table.cookies.name[nojoueur];
-    table.sockets[nojoueur]=socket;
-    table.cookies.id[nojoueur]=cookie.parse(socket.handshake.headers.cookie)['connect.sid'];
-    io.emit('MAJsalle',table.salle);
-    if (donne){
-      //recalcul de l'état (main du joueur, qui doit jouer)
-      main=donne['main'+nojoueur];
-      plis=donne.plis[0].concat(donne.plis[2], donne.plis[1], donne.plis[3]);
-      for (let i=0;i<main.length;i++){
-        for (let j=0;j<plis.length;j++){
-          if (main[i]==plis[j]) {
-              main.splice(i,1);
-          }
-        }
-      };
-      //Chercher le joueru a jouer dans le pli
-      joueur=donne.alamain;
-      for (let i=0;i<4;i++){
-        if (pli[(joueur+i)%4]==(-1)){
-          joueur=(joueur+i)%4;
-          break;
-        }
-      };
-
-      if (pli.every(e=>e!=(-1))) {
-        joueur=donne.ramasseur(pli);
-        socket.emit('Tourplifait',[donne.main0[pli[0]],donne.main1[pli[1]],donne.main2[pli[2]],donne.main3[pli[3]]],donne.ramasseur(pli));
-      };
-      socket.emit('Refresh', socket.nojoueur, main, joueur);
-    } else {addUser(table.salle[nojoueur],nojoueur)};
+  if (game.joueurs){
+    MAJ.data(game);
+    var id=cookie.parse(socket.handshake.headers.cookie)['connect.sid'];
+    var nojoueur=game.lastJoueurs.map(joueur=>(joueur && joueur.cookie)).indexOf(id);
+     if (nojoueur!=-1 && game.joueurs[nojoueur]==null){
+       //TODO reconnection
+     }
   }
 
-  // Quand quelqu'un se déconnecte
+  //Login
+  socket.once('add user',(nomjoueur,no)=>{
+    game.joueurs[no]=new Joueur(nomjoueur,socket);
+    MAJ.data(game);
+    if (! game.joueurs.includes(undefined)){
+    game.start(game);
+    }
+
+  })
+
+  //Déconnection
   socket.on('disconnect', () => {
-    //--table.numUsers;
-    if (socket.nojoueur||(socket.nojoueur==0)){
-      table.salle[socket.nojoueur]="";
-      table.sockets[socket.nojoueur]=undefined;
+    var id=cookie.parse(socket.handshake.headers.cookie)['connect.sid'];
+    var nojoueur=game.joueurs.map(joueur=>(joueur && joueur.cookie)).indexOf(id);
+    if (nojoueur != (-1)){
+      game.lastJoueurs[nojoueur]=game.joueurs[nojoueur];
+      game.joueurs[nojoueur]=null;
+      MAJ.data(game);
     };
-    socket.broadcast.emit('MAJsalle', table.salle);
   });
+})
 
-  //Etat de la salle à la connection du client
-  socket.emit('MAJsalle',table.salle);
+//fonctions de connection au client
+var MAJ={
+  //envoie la mise à jour des données au client
+   data(g){
+    var data={
+      'joueurs': g.joueurs.map(joueur=>(joueur && joueur.nom)),
+      'scores': g.scores,
+      'donneur': g.donneur,
+      'preneur':(g.donne && g.donne.preneur),
+      'contrat':(g.donne && g.donne.contrat),
+      'joueuractif':g.joueuractif,
+      'pli':(g.donne && g.donne.pli),
+      'ramasseur':(g.donne && g.donne.ramasseur),
+      'pointsfaits':(g.donne && g.donne.pointsfaits),
+      'phase':(g.phase && g.phase.name)
+    }
+    io.emit('MAJdata',data);
+  },
 
-  // Inscription d'un joueur dans la salle et lancement de la partie
-  socket.on('add user', addUser);
-
-function addUser(username,nojoueur) {
-    socket.nojoueur = nojoueur;
-    table.salle[nojoueur] = username;
-    table.sockets[nojoueur]=socket;
-    table.cookies.id[nojoueur]=cookie.parse(socket.handshake.headers.cookie)['connect.sid'];
-    table.cookies.name[nojoueur]=username;
-    io.emit('MAJsalle',table.salle);//on previent tout le monde
-    socket.emit('Page','main');
-    if (table.salle[0]!="" && table.salle[1]!="" && table.salle[2]!="" && table.salle[3]!=""){//lancement de la partie
-      jeu = new Jeu();
-      donne = new Donne(0);
-      jeu.melanger();
-      donne.distribuer(jeu);
-      debutDeDonne();
-    };
-  }
-
-  socket.on('Jeprends',()=>{
-    socket.broadcast.emit('Page','main');
-  })
-
-  socket.on('Jedonnelecontrat',(data)=>{
-    donne.contrat=data;
-    if (data[0]=="Générale"){donne.alamain=data[3]};
-    io.emit('Touratoi',donne.alamain);
-  })
-
-  //le 4ème joueur passe
-  socket.on('Redonner',()=>{
-    jeu.melanger();
-    nouveaudonneur=(donne.donneur+1)%4;
-    donne=new Donne(nouveaudonneur);
-    donne.distribuer(jeu);
-    debutDeDonne();
-  })
-
-  //TODO: "j'annule"
-
-  //Un joueur a joué une carte
-  socket.on('cartejouee',(carte)=>{
-    socket.broadcast.emit('MAJcarteposee',donne['main'+socket.nojoueur][carte],socket.nojoueur);//on previent les autres qu'une carte a été posée
-    pli[socket.nojoueur]=carte;
-    if (pli.every(e=>e!=(-1))){ //Les 4 cartes sont posées
-      io.emit('Tourplifait',[donne.main0[pli[0]],donne.main1[pli[1]],donne.main2[pli[2]],donne.main3[pli[3]]],donne.ramasseur(pli));
+  //envoi des mains (d'une seule si nojoueur est spécifié)
+  mains(g,nojoueur){
+    if (nojoueur!=null){
+      g.joueurs[nojoueur].socket.emit('MAJmain',g.donne.mains[nojoueur]);
     } else {
-      io.emit('Touratoi',(socket.nojoueur+1)%4);
+      for (let i=0;i<4;i++){g.joueurs[i].socket.emit('MAJmain', g.donne.mains[i])}
     }
-  })
+  },
 
-  //un joueur a pris le pli
-  socket.on('plireleve',()=>{
-    socket.broadcast.emit('MAJpliramasse');
-    var ramasseur=donne.ramasseur(pli);
-    donne.ramasser(pli);
-    pli=[-1,-1,-1,-1];
-    var nbplis=0;
-    for (let i=0;i<4;i++){nbplis+=donne.plis[i].length};
-    if (nbplis==32){//fin de donne
-      if (ramasseur%2==0){donne.compte[0]+=10} else {donne.compte[1]+=10};//10 de der
-      donne.MAJcompte();
-      table.finDeDonne(donne);
-      io.emit('MAJscores',donne.contrat, donne.compte,table.points);
-      io.emit('Page','score');
-    } else {
-      io.emit('Touratoi',donne.alamain);
+//doit recevoir les 4 messages "mess" pour lancer fn
+  onAll(g,mess,fn){
+    var i=0;
+    for (j=0;j<g.joueurs.length;j++){
+      g.joueurs[j].socket.once(mess,()=>{
+        if (i>=3){
+          fn();
+        } else {
+          i++;
+        }
+      })
     }
-  })
-
-  //un joueur a validé la donne Suivante
-  socket.on('donneSuivante',()=>{
-    table.flagDonneSuivante++;
-    if (table.flagDonneSuivante==4){
-      if (table.points[0]>=1000 || table.points[1]>=1000) {table.points=[0,0];}
-      jeu.liste=donne.plis[0].concat(donne.plis[2], donne.plis[1], donne.plis[3]);//on refait le jeu
-      jeu.couper();
-      nouveaudonneur=(donne.donneur+1)%4;
-      donne=new Donne(nouveaudonneur);
-      donne.distribuer(jeu);
-      debutDeDonne();
-    }
-  })
-
-});
-
-
-
-//*****fonctions du jeu
-
-function debutDeDonne(){
-  for (let i=0;i<4; i++){
-    table.sockets[i].emit('Tourdebut',donne.donneur,donne['main'+i]);
   }
 }
 
-//***Déinition des objets du jeu***
 
-//constructeur tas de cartes mélangé et méthode de coupe
-function Jeu(){
-  var jeu=new Array(); //creation du jeu (liste de cartes)
+//**************Objets du jeu***************
+//Constructeur du jeu global
+function Game(){
+
+   this.start=function(g){
+    g.paquet.couper();
+    g.donne=new Donne(g.donneur);
+    g.donne.distribuer(g.paquet,g.donneur);
+    g.joueuractif=1;
+    MAJ.mains(g);
+    phases.annonces(g);
+  }
+
+  //fonctions d'avancée dans le jeu
+  var phases={
+
+    annonces(g){
+      g.phase=this.annonces;
+      MAJ.data(g);
+      g.joueurs.map(joueur=>joueur.socket.removeAllListeners());
+      g.joueurs.map((joueur)=>{
+        joueur.socket.once('Jeprends',()=>{
+          g.donne.preneur=g.joueurs.indexOf(joueur);
+          g.joueuractif=null;
+          this.saisiecontrat(g);
+        })
+      })
+      g.joueurs.map((joueur)=>{
+        joueur.socket.once('Redonner',()=>{
+          g.donneur=(g.donneur+1)%4;
+          g.joueuractif=(g.donneur+1)%4;
+          g.paquet=new Paquet();
+          g.paquet.couper();
+          g.donne=new Donne(g.donneur);
+          g.donne.distribuer(g.paquet,g.donneur);
+          MAJ.mains(g);
+          this.annonces(g);
+        })
+      })
+    },
+
+    saisiecontrat(g){
+      g.phase=this.saisiecontrat;
+      MAJ.data(g);
+      g.joueurs.map(joueur=>joueur.socket.removeAllListeners());
+      g.joueurs[g.donne.preneur].socket.once('Jedonnelecontrat',contrat=>{
+        g.donne.contrat=contrat;
+        g.joueuractif=(g.donne.contrat.valeur=='Générale' ? g.donne.preneur : (g.donneur+1)%4)
+        g.donne.isBelote();
+        this.jouerpli(g);
+      })
+    },
+
+    jouerpli(g){
+      g.phase=this.jouerpli;
+      MAJ.data(g);
+      g.joueurs.map(joueur=>joueur.socket.removeAllListeners());
+      g.joueurs[g.joueuractif].socket.once('cartejouee',carte=>{
+        g.donne.pli[g.joueuractif]=carte;
+        var indice=-1;
+        var main=g.donne.mains[g.joueuractif]
+        for (let i=0;i<main.length;i++){
+          if (main[i].valeur==carte.valeur && main[i].couleur==carte.couleur){indice=i}
+        }
+        g.donne.mains[g.joueuractif].splice(indice,1);
+        g.tour++;
+        if (g.tour%4==0){
+          g.donne.ramassepli();
+          g.joueuractif=g.donne.ramasseur;
+          this.findepli(g);
+        } else {
+        g.joueuractif=(g.joueuractif+1)%4;
+        this.jouerpli(g);
+        }
+      })
+    },
+
+    findepli(g){
+      g.phase=this.findepli;
+      MAJ.data(g);
+      g.joueurs.map(joueur=>joueur.socket.removeAllListeners());
+      g.joueurs[g.joueuractif].socket.once('plireleve',()=>{
+        if (g.tour==32){
+          g.tour=0;
+          g.donne.pli=Array(4);
+          resultat=g.donne.MAJcomptes();
+          g.scores[0]+=resultat[0];
+          g.scores[1]+=resultat[1];
+          g.joueuractif=null;
+          this.findedonne(g);
+        } else {
+          g.donne.pli=Array(4);
+          this.jouerpli(g);
+        }
+      })
+    },
+
+    findedonne(g){
+      g.phase=this.findedonne;
+      MAJ.data(g);
+      g.joueurs.map(joueur=>joueur.socket.removeAllListeners());
+      MAJ.onAll(g,'donneSuivante',()=>{
+        g.donneur=(g.donneur+1)%4;
+        g.joueuractif=(g.donneur+1)%4;
+        if (g.scores[1]>=1000 || g.scores[2]>=1000) {g.scores=[0,0]};
+        g.paquet.cartes=g.donne.plis[0].concat(g.donne.plis[1],g.donne.plis[2],g.donne.plis[3]);
+        g.paquet.couper();
+        g.donne=new Donne(g.donneur);
+        g.donne.distribuer(g.paquet,g.donneur);
+        MAJ.mains(g);
+        this.annonces(g);
+      })
+    }
+  }
+
+  //données du jeu
+  this.tour=0;
+  this.joueuractif;
+  this.donne;
+  this.donneur=0;
+  this.scores=[0,0];
+  this.paquet=new Paquet();
+  this.joueurs=Array(4);
+  this.lastJoueurs=Array(4);//archive du joueur en cas de déconnection
+  this.phase;
+}
+
+//Constructeur du paquet de cartes
+function Paquet() {
+  //Construction du jeu de carte
+  var cartes=new Array();
+  var couleurs=["spade","heart","diamond","club"];
+  var valeurs=["1","king","queen","jack","10","9","8","7"];
   //Associer les 32 cartes
   for (let i=0;i<couleurs.length;i++){
     for (let j=0;j<valeurs.length;j++){
       var carte={valeur:valeurs[j], couleur:couleurs[i]};
-      jeu.push(carte);
+      cartes.push(carte);
     }
   }
-  //Mélanger le jeu
-  function melanger(){
-    j=this.liste;
-    for (let i = j.length - 1; i > 0; i--) {
-        let k = Math.floor(Math.random() * (i + 1));
-        [j[i], j[k]] = [j[k], j[i]];
-    }
-    this.liste=j;
+
+  //Mélanger
+  for (let i = cartes.length - 1; i > 0; i--) {
+    let k = Math.floor(Math.random() * (i + 1));
+    [cartes[i], cartes[k]] = [cartes[k], cartes[i]];
   }
-  //Couper le jeu
+
+  //Fonction de coupe du jeu
   function couper(){
-    j=this.liste;
     const r=Math.floor(Math.random() * 32);
-    var res=[];
-    for (let i=0;i<j.length;i++){
-      res[i]=j[(i+r)%32];
+    var res=new Array();
+    for (let i=0;i<this.cartes.length;i++){
+      res[i]=this.cartes[(i+r)%32];
     }
-    this.liste=res;
+    this.cartes=res;
   }
 
-  this.liste=jeu;
-  this.melanger=melanger;
+  this.cartes=cartes;
   this.couper=couper;
+}
 
+//Constructeur des joueurs
+function Joueur(nomjoueur,socket){
+  this.nom=nomjoueur;
+  this.socket=socket;
+  this.cookie=cookie.parse(socket.handshake.headers.cookie)['connect.sid'];
 }
 
 //constructeur donne de 4 joueurs et un donneur
 function Donne(donneur){
   //Distribuer les cartes aux joueurs
-  function distribuer(jeu){
-    jeu.couper;
-    var j=jeu.liste;
+  function distribuer(paquet,donneur){
+    paquet.couper;
+    var j=paquet.cartes;
     for (let i=0;i<4;i++){
-        this["main"+(this.donneur+i+1)%4].push(j[3*i],j[3*i+1],j[3*i+2]);
-        this["main"+(this.donneur+i+1)%4].push(j[3*i+12],j[3*i+13],j[3*i+14]);
-        this["main"+(this.donneur+i+1)%4].push(j[2*i+24],j[2*i+25]);
+        this.mains[(donneur+i+1)%4].push(j[3*i],j[3*i+1],j[3*i+2],j[3*i+12],j[3*i+13],j[3*i+14],j[2*i+24],j[2*i+25]);
     }
   }
+
   //Calcul le ramasseur d'un pli -> pour fonction ramasser
-  function ramasseur(pli){
-    var noOuvreur=this.alamain;
-    var contrat=this.contrat;
-    var tab=[this.main0[pli[0]],this.main1[pli[1]],this.main2[pli[2]],this.main3[pli[3]]];
+  function calculramasseur(pli,contrat,ramasseur){
+    var noOuvreur=ramasseur;
     const ordreCouleur=["7","8","9","jack","queen","king","10","1"];
     const ordreAtout=["7","8","queen","king","10","1","9","jack"];
-    atout=contrat[1];
-    couleurDemande=tab[noOuvreur].couleur;
+    atout=contrat.couleur;
+    couleurDemande=pli[noOuvreur].couleur;
     score=[0,0,0,0];
     for (let i=0;i<4;i++){
       switch (atout){
         case "SA":
-          if (tab[i].couleur==couleurDemande){
-            score[i]=1+ordreCouleur.indexOf(tab[i].valeur);
+          if (pli[i].couleur==couleurDemande){
+            score[i]=1+ordreCouleur.indexOf(pli[i].valeur);
           }
         break;
         case "TA":
-        if (tab[i].couleur==couleurDemande){
-          score[i]=1+ordreAtout.indexOf(tab[i].valeur);
+        if (pli[i].couleur==couleurDemande){
+          score[i]=1+ordreAtout.indexOf(pli[i].valeur);
         }
         break;
         default:
-          switch (tab[i].couleur){
+          switch (pli[i].couleur){
           case atout:
-            score[i]=9+ordreAtout.indexOf(tab[i].valeur);
+            score[i]=9+ordreAtout.indexOf(pli[i].valeur);
             break;
           case couleurDemande:
-            score[i]=1+ordreCouleur.indexOf(tab[i].valeur);
+            score[i]=1+ordreCouleur.indexOf(pli[i].valeur);
             break;
           }
         break;
@@ -269,121 +309,118 @@ function Donne(donneur){
     }
     return score.indexOf(Math.max(...score));//retourne l'indice du plus grand
   }
+
   //ramasser un pli (no de carte de chaque main dans un tableau de 4 indices,  on remplit le pli pour le ramasseur)
-  function ramasser(pli){
-    ram=this.ramasseur(pli);
-    for (let i=0;i<4;i++){
-      this.plis[ram].push(this['main'+i][pli[i]]); //range le pli
-    }
-    this.alamain=ram;//on donne la main au preneur
+  function ramassepli(){
+    this.ramasseur=calculramasseur(this.pli,this.contrat,this.ramasseur);
+    this.plis[this.ramasseur]=this.plis[this.ramasseur].concat(this.pli);
   }
+
   //chercher la belote et mettre à jour le compte
   function isBelote(){
-    if (this.contrat[0]=='Capot'||this.contrat[0]=='Générale'){return};//pas de belote sur capots et générale
+    if (this.contrat.valeur=='Capot'||this.contrat.valeur=='Générale'){return};//pas de belote sur capots et générale
     for (let j=0;j<4;j=j+2){
       var res=0;
-      var main=this['main'+((this.contrat[3]+j) %4)];//main du preneur puis de son equipier
+      var main=this.mains[((this.preneur+j) %4)];//main du preneur puis de son equipier
       for (let i=0;i<main.length;i++){
-        if ((main[i].couleur==this.contrat[1])&&(main[i].valeur=='king')){res++};
-        if ((main[i].couleur==this.contrat[1])&&(main[i].valeur=='queen')){res++};
+        if ((main[i].couleur==this.contrat.couleur)&&(main[i].valeur=='king')){res++};
+        if ((main[i].couleur==this.contrat.couleur)&&(main[i].valeur=='queen')){res++};
       }
-      if (res==2){this.compte[(this.contrat[3])%2]+=20};
+      this.flagbelote=(this.flagbelote||res==2);
     }
   }
 
-  //compte les points des plis
-  function MAJcompte(){
-   this.isBelote();//on compte la belote
-    for (let i=0;i<4;i++){
-      for (let j=0;j<this.plis[i].length;j++){
-        carte=this.plis[i][j];
+
+  function compte(tab,contrat){
+      res=0;
+      for (let i=0;i<tab.length;i++){
+        carte=tab[i];
         switch(carte.valeur){
           case "jack":
-          if ((this.contrat[1]=="TA")||(carte.couleur==this.contrat[1])){
-            this.compte[i%2]+=20;
+          if ((contrat.couleur=="TA")||(carte.couleur==contrat.couleur)){
+            res+=20;
           } else {
-            this.compte[i%2]+=2;
+            res+=2;
           }
           break;
           case "9":
-          if ((this.contrat[1]=="TA")||(carte.couleur==this.contrat[1])){
-            this.compte[i%2]+=14;
+          if ((contrat.couleur=="TA")||(carte.couleur==contrat.couleur)){
+            res+=14;
           }
           break;
           case "1":
-          this.compte[i%2]+=11;
+          res+=11;
           break;
           case "10":
-          this.compte[i%2]+=10;
+          res+=10;
           break;
           case "king":
-          this.compte[i%2]+=4;
+          res+=4;
           break;
           case "queen":
-          this.compte[i%2]+=3;
+          res+=3;
           break;
         }
       }
-    }
+      return res;
   }
-  //définition des propriétés
-  this.main0 = [];
-  this.main1 = [];
-  this.main2 = [];
-  this.main3 = [];
-  this.plis=[[],[],[],[]];//plis de chaque joueur
-  this.compte=[0,0];//comptes des équipes
-  this.isBelote=isBelote;
-  this.contrat = ["","","",-1];//score, couleur, coinche, numéro du preneur
-  this.donneur = donneur;
-  this.alamain = (donneur+1)%4;//dans le pli en cours
+
+  //met à jour points faits et retourne points à marquer (à mettre dans score)
+  function MAJcomptes(){
+    //Calcul du compte des plis des attaquants
+   var res=0;
+   if (this.flagbelote){res+=20}; //on compte la belote
+   if ((this.ramasseur%2)==(this.preneur%2)){res+=10};// on compte le 10 de der
+   res+=compte(this.plis[this.preneur],this.contrat);
+   res+=compte(this.plis[(this.preneur+2)%4],this.contrat);
+
+   //Points à marquer
+   var compteur=[0,0];//score de l'équipe qui marque
+   switch (this.contrat.valeur){
+     case 'Générale':
+     if (this.plis[this.preneur].length==32){
+       compteur[this.preneur %2]=500;
+     } else {
+       compteur[(this.preneur+1)%2]=160;
+     }
+     break;
+     case 'Capot':
+     if (this.plis[this.preneur].length+this.plis[(this.preneur+2)%4].length==32){
+       compteur[this.preneur %2]=250;
+     } else {
+       compteur[(this.preneur +1)%2]=160;
+     }
+     break;
+     default:
+     var valcontrat=parseInt(this.contrat.valeur,10);
+     if (res>=valcontrat){
+       compteur[this.preneur %2]=valcontrat;
+     } else {
+       compteur[(this.preneur +1)%2]=160;
+     }
+     break;
+   }
+   if (this.contrat.coinche=="Coinché"){compteur=compteur.map(n=>2*n)};
+   if (this.contrat.coinche=="Surcoinché"){compteur=compteur.map(n=>4*n)};
+
+   this.pointsfaits=res;
+   return compteur;
+  }
+
+  //définition des fonctions
   this.distribuer = distribuer;
-  this.ramasseur = ramasseur;
-  this.ramasser = ramasser;//prend un tableau avec les 4 indices des cartes jouées
-  this.MAJcompte=MAJcompte;
-}
+  this.ramassepli = ramassepli;//prend un tableau avec les 4 indices des cartes jouées
+  this.isBelote=isBelote;
+  this.compte=compte;
+  this.MAJcomptes=MAJcomptes;
 
-//constructeur de l'objet Table qui gère tous les joueurs
-function Table (){
-  function finDeDonne(donne){
-    //Comparons le contrat et le score
-    var compteur=[0,0];//score de l'équipe qui marque
-    switch (donne.contrat[0]){
-      case 'Générale':
-      if (donne.plis[donne.contrat[3]].length==32){
-        compteur[donne.contrat[3]%2]=500;
-      } else {
-        compteur[(donne.contrat[3]+1)%2]=160;
-      }
-      break;
-      case 'Capot':
-      if (donne.plis[donne.contrat[3]].length+donne.plis[(donne.contrat[3]+2)%4].length==32){
-        compteur[donne.contrat[3]%2]=250;
-      } else {
-        compteur[(donne.contrat[3]+1)%2]=160;
-      }
-      break;
-      default:
-      var valcontrat=parseInt(donne.contrat[0],10);
-      if (donne.compte[donne.contrat[3]%2]>=valcontrat){
-        compteur[donne.contrat[3]%2]=valcontrat;
-      } else {
-        compteur[(donne.contrat[3]+1)%2]=160;
-      }
-      break;
-    }
-    if (donne.contrat[2]=="Coinché"){compteur=compteur.map(n=>2*n)};
-    if (donne.contrat[2]=="Surcoinché"){compteur=compteur.map(n=>4*n)};
-    this.points[0]+=compteur[0];
-    this.points[1]+=compteur[1];
-    this.flagDonneSuivante=0;
-  }
-
-  //this.numUsers=0;//nombre de personne qui ouvrent un socket
-  this.salle=["","","",""];//nom des joueurs
-  this.sockets=[,,,];//sockets des joueurs
-  this.cookies={'id':[,,,],'name':[,,,]};//cookie des joueurs et nom associé
-  this.points=[0,0];//suivi des totaux
-  this.flagDonneSuivante=0;//pour savoir si tout le monde est ok pour passer à la donne suivante
-  this.finDeDonne=finDeDonne;//met à jour les scores et le flag
+  //Définitions des variables
+  this.pli=Array(4);//Pli en cours
+  this.preneur;//du contrat
+  this.contrat;
+  this.plis=[[],[],[],[]];//plis de chaque joueur
+  this.flagbelote;
+  this.ramasseur = (donneur+1)%4;//Dernier a avoir fait un pli
+  this.mains=[new Array(),new Array(),new Array(),new Array()];
+  this.pointsfaits=0;
 }
