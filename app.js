@@ -21,16 +21,23 @@ var game=new Game();
 //connections et déconnections
 io.on('connection',socket=>{
 
-  if (game.joueurs){
-    MAJ.data(game);
-    var id=cookie.parse(socket.handshake.headers.cookie)['connect.sid'];
-    var nojoueur=game.lastJoueurs.map(joueur=>(joueur && joueur.cookie)).indexOf(id);
-     if (nojoueur!=-1 && game.joueurs[nojoueur]==null){
-       //TODO reconnection
-     }
+  function reconnect(){
+    if (game.joueurs){
+      var id=cookie.parse(socket.handshake.headers.cookie)['connect.sid'];
+      var no=game.lastJoueurs.map(joueur=>(joueur && joueur.cookie)).indexOf(id);
+       if (no!=-1 && game.joueurs[no]==undefined){
+         game.joueurs[no]=new Joueur(game.lastJoueurs[no].nom,socket);
+         MAJ.mains(game,no);
+         (game.phase?game.phase(game):null);
+       }
+       MAJ.data(game);
+    }
   }
 
+//  reconnect();
+
   //Login
+  MAJ.data(game);
   socket.once('add user',(nomjoueur,no)=>{
     game.joueurs[no]=new Joueur(nomjoueur,socket);
     MAJ.data(game);
@@ -46,7 +53,7 @@ io.on('connection',socket=>{
     var nojoueur=game.joueurs.map(joueur=>(joueur && joueur.cookie)).indexOf(id);
     if (nojoueur != (-1)){
       game.lastJoueurs[nojoueur]=game.joueurs[nojoueur];
-      game.joueurs[nojoueur]=null;
+      game.joueurs[nojoueur]=undefined;
       MAJ.data(game);
     };
   });
@@ -66,28 +73,38 @@ var MAJ={
       'pli':(g.donne && g.donne.pli),
       'ramasseur':(g.donne && g.donne.ramasseur),
       'pointsfaits':(g.donne && g.donne.pointsfaits),
-      'phase':(g.phase && g.phase.name)
+      'phase':(g.phase && g.phase.name),
+      'tour':g.tour
     }
     io.emit('MAJdata',data);
   },
 
   //envoi des mains (d'une seule si nojoueur est spécifié)
   mains(g,nojoueur){
+
     if (nojoueur!=null){
-      g.joueurs[nojoueur].socket.emit('MAJmain',g.donne.mains[nojoueur]);
+      g.joueurs[nojoueur].socket.emit('MAJmain',(g.donne? g.donne.mains[nojoueur] : []),nojoueur);
     } else {
       for (let i=0;i<4;i++){g.joueurs[i].socket.emit('MAJmain', g.donne.mains[i])}
     }
   },
 
-//doit recevoir les 4 messages "mess" pour lancer fn
+  //envoi de toutes les mains
+  mainsPosees(g){
+    io.emit('MAJmainsposees',g.donne.mains);
+  },
+
+//doit recevoir les 4 messages "mess" pour lancer fn. Si les 4 data sont semblables (edit score), on les trasnmets
   onAll(g,mess,fn){
     var i=0;
+    var res;//pour comparer les data
     for (j=0;j<g.joueurs.length;j++){
-      g.joueurs[j].socket.once(mess,()=>{
+      g.joueurs[j].socket.once(mess,(data)=>{
         if (i>=3){
-          fn();
+          (res && data && res.toString()==data.toString())?res=data:res=null;
+          fn(res);
         } else {
+          if (i==0){res=data} else {(res && data && res.toString()==data.toString())?res=data:res=null}
           i++;
         }
       })
@@ -113,44 +130,55 @@ function Game(){
   var phases={
 
     annonces(g){
-      g.phase=this.annonces;
+      g.phase=g.phases.annonces;
       MAJ.data(g);
       g.joueurs.map(joueur=>joueur.socket.removeAllListeners());
       g.joueurs.map((joueur)=>{
         joueur.socket.once('Jeprends',()=>{
           g.donne.preneur=g.joueurs.indexOf(joueur);
           g.joueuractif=null;
-          this.saisiecontrat(g);
+          g.phases.saisiecontrat(g);
         })
       })
       g.joueurs.map((joueur)=>{
         joueur.socket.once('Redonner',()=>{
-          g.donneur=(g.donneur+1)%4;
-          g.joueuractif=(g.donneur+1)%4;
-          g.paquet=new Paquet();
-          g.paquet.couper();
-          g.donne=new Donne(g.donneur);
-          g.donne.distribuer(g.paquet,g.donneur);
-          MAJ.mains(g);
-          this.annonces(g);
+          g.joueuractif=null;
+          g.phases.redonne(g);
         })
       })
     },
 
+    redonne(g){
+      g.phase=g.phases.redonne;
+      MAJ.data(g);
+      MAJ.mainsPosees(g);
+      g.joueurs.map(joueur=>joueur.socket.removeAllListeners());
+      MAJ.onAll(g,'donneSuivante',()=>{
+        g.donneur=(g.donneur+1)%4;
+        g.joueuractif=(g.donneur+1)%4;
+        g.paquet=new Paquet();
+        g.paquet.couper();
+        g.donne=new Donne(g.donneur);
+        g.donne.distribuer(g.paquet,g.donneur);
+        MAJ.mains(g);
+        g.phases.annonces(g);
+      });
+    },
+
     saisiecontrat(g){
-      g.phase=this.saisiecontrat;
+      g.phase=g.phases.saisiecontrat;
       MAJ.data(g);
       g.joueurs.map(joueur=>joueur.socket.removeAllListeners());
       g.joueurs[g.donne.preneur].socket.once('Jedonnelecontrat',contrat=>{
         g.donne.contrat=contrat;
         g.joueuractif=(g.donne.contrat.valeur=='Générale' ? g.donne.preneur : (g.donneur+1)%4)
         g.donne.isBelote();
-        this.jouerpli(g);
+        g.phases.jouerpli(g);
       })
     },
 
     jouerpli(g){
-      g.phase=this.jouerpli;
+      g.phase=g.phases.jouerpli;
       MAJ.data(g);
       g.joueurs.map(joueur=>joueur.socket.removeAllListeners());
       g.joueurs[g.joueuractif].socket.once('cartejouee',carte=>{
@@ -165,16 +193,16 @@ function Game(){
         if (g.tour%4==0){
           g.donne.ramassepli();
           g.joueuractif=g.donne.ramasseur;
-          this.findepli(g);
+          g.phases.findepli(g);
         } else {
         g.joueuractif=(g.joueuractif+1)%4;
-        this.jouerpli(g);
+        g.phases.jouerpli(g);
         }
       })
     },
 
     findepli(g){
-      g.phase=this.findepli;
+      g.phase=g.phases.findepli;
       MAJ.data(g);
       g.joueurs.map(joueur=>joueur.socket.removeAllListeners());
       g.joueurs[g.joueuractif].socket.once('plireleve',()=>{
@@ -185,28 +213,33 @@ function Game(){
           g.scores[0]+=resultat[0];
           g.scores[1]+=resultat[1];
           g.joueuractif=null;
-          this.findedonne(g);
+          g.phases.findedonne(g);
         } else {
           g.donne.pli=Array(4);
-          this.jouerpli(g);
+          g.phases.jouerpli(g);
         }
       })
     },
 
     findedonne(g){
-      g.phase=this.findedonne;
+      g.phase=g.phases.findedonne;
       MAJ.data(g);
       g.joueurs.map(joueur=>joueur.socket.removeAllListeners());
-      MAJ.onAll(g,'donneSuivante',()=>{
+      MAJ.onAll(g,'donneSuivante',(score)=>{
+        if (score && parseInt(score[0]) && parseInt(score[1])) {
+          g.scores[0]=parseInt(score[0]);
+          g.scores[1]=parseInt(score[1]);
+        };
+
         g.donneur=(g.donneur+1)%4;
         g.joueuractif=(g.donneur+1)%4;
-        if (g.scores[1]>=1000 || g.scores[2]>=1000) {g.scores=[0,0]};
+        if (g.scores[0]>=1000 || g.scores[1]>=1000) {g.scores=[0,0]};
         g.paquet.cartes=g.donne.plis[0].concat(g.donne.plis[1],g.donne.plis[2],g.donne.plis[3]);
         g.paquet.couper();
         g.donne=new Donne(g.donneur);
         g.donne.distribuer(g.paquet,g.donneur);
         MAJ.mains(g);
-        this.annonces(g);
+        g.phases.annonces(g);
       })
     }
   }
@@ -221,6 +254,7 @@ function Game(){
   this.joueurs=Array(4);
   this.lastJoueurs=Array(4);//archive du joueur en cas de déconnection
   this.phase;
+  this.phases=phases;
 }
 
 //Constructeur du paquet de cartes

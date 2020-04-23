@@ -44,32 +44,47 @@ document.getElementById('OK').addEventListener('click',()=>{
   };
 })
 
-//init du dialog Annule
-document.getElementById('Annule').addEventListener('click',()=>{
-  socket.emit('Redonner');
+//init du dialog nlle donne
+document.getElementById('nlledonne').addEventListener('click',()=>{
+  socket.emit('donneSuivante');
+  affichePage("mainpage");
+  for (let i in imagesCartes){
+    imagesCartes[i].set({evented:false,id:null,angle:0});
+    canvas.remove(imagesCartes[i]);
+  }
+  canvas.renderAll();
 })
 
 //Init du dialog score
 document.getElementById('donneSuivante').addEventListener('click',()=>{
-  socket.emit('donneSuivante');
+  var edit=[document.getElementById('score0').innerHTML,document.getElementById('score1').innerHTML];
+  socket.emit('donneSuivante',edit);
   affichePage("mainpage");
 })
 
 //*************************evenements du socket
 
-socket.on('MAJmain',afficheMain);
+socket.on('MAJmain',(main,no)=>{
+  afficheMain(main);
+  if(no!=null){
+    nojoueur=no;
+    affichePage('mainpage');
+  }
+});
+
+socket.on('MAJmainsposees',afficheMainsPosees);
 
 socket.on('MAJdata',data=>MAJdata(data));
 
 function MAJdata(data){
-  console.log(canvas);//debug
+  console.log('data',data,nojoueur);
   //MAJ des noms de la table
   jGauche.text = (data.joueurs[(nojoueur+1)%4]==null ? "" : data.joueurs[(nojoueur+1)%4]);
   jFace.text = (data.joueurs[(nojoueur+2)%4]==null ? "" : data.joueurs[(nojoueur+2)%4]);
   jDroite.text = (data.joueurs[(nojoueur+3)%4]==null ? "" : data.joueurs[(nojoueur+3)%4]);
   afficheJoueurActif(data.joueuractif);
   //MAJ des cartes posées
-  canvas.forEachObject(obj=>{(obj.id==null) ? canvas.remove(obj) : null});
+  canvas.getObjects().forEach(obj=>{(obj.id==null||obj.groupe) ? canvas.remove(obj) : null});
   affichePli(data.pli);
   canvas.renderAll();
 
@@ -77,6 +92,11 @@ function MAJdata(data){
     case 'annonces':
       affichePage("mainpage","annonces");
       document.getElementById('Redonner').style.display=(data.donneur==nojoueur ? "":"none");
+    break;
+    case 'redonne':
+      affichePage("mainpage","nouvelledonne");
+      MAJscore(data);
+      //utilise l'event MAJmainsposees
     break;
     case 'saisiecontrat':
       if (nojoueur==data.preneur){
@@ -438,5 +458,30 @@ function MAJpliramasse(){
   canvas.remove(imagePli);
   canvas.renderAll();
 };
+
+function afficheMainsPosees(mains){
+
+  for (let i=0;i<8;i++){
+
+    carte=mains[(nojoueur+1)%4][i];
+    imagesCartes[carte.couleur+"_"+carte.valeur].set({left:10*vw,top:(20+5*i)*vh,angle:90, id:carte});
+    canvas.add(imagesCartes[carte.couleur+"_"+carte.valeur]);
+
+    carte=mains[(nojoueur+2)%4][i];
+    imagesCartes[carte.couleur+"_"+carte.valeur].set({left:(35+5*i)*vw,top:15*vh, id:carte});
+    canvas.add(imagesCartes[carte.couleur+"_"+carte.valeur]);
+
+    carte=mains[(nojoueur+3)%4][i];
+    imagesCartes[carte.couleur+"_"+carte.valeur].set({left:90*vw,top:(55-5*i)*vh,angle:90, id:carte});
+    canvas.add(imagesCartes[carte.couleur+"_"+carte.valeur]);
+  }
+}
+
+
+
+
+
+
+
 
 });
