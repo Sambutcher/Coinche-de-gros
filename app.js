@@ -34,7 +34,7 @@ io.on('connection',socket=>{
     }
   }
 
-//Debug  reconnect();
+  reconnect();
 
   //Login
   MAJ.data(game);
