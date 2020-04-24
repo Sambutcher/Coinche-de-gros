@@ -34,7 +34,7 @@ io.on('connection',socket=>{
     }
   }
 
-  reconnect();
+//Debug  reconnect();
 
   //Login
   MAJ.data(game);
@@ -100,6 +100,7 @@ var MAJ={
     var res;//pour comparer les data
     for (j=0;j<g.joueurs.length;j++){
       g.joueurs[j].socket.once(mess,(data)=>{
+        console.log(data);
         if (i>=3){
           (res && data && res.toString()==data.toString())?res=data:res=null;
           fn(res);
@@ -231,7 +232,7 @@ function Game(){
           g.scores[1]=parseInt(score[1]);
         };
 
-        console.log(g);
+        //debug console.log(g);
         g.donneur=(g.donneur+1)%4;
         g.joueuractif=(g.donneur+1)%4;
         if (g.scores[0]>=1000 || g.scores[1]>=1000) {g.scores=[0,0]};

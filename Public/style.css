@@ -70,3 +70,13 @@ table{
 #stockimages{
   display:none;
 }
+
+.score{
+  border  : none;
+  padding : 0 0;
+  margin  : 0;
+  width   : 6ch;
+  background: none;
+  text-align: center;
+  font: inherit;
+}

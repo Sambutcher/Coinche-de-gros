@@ -57,7 +57,7 @@ document.getElementById('nlledonne').addEventListener('click',()=>{
 
 //Init du dialog score
 document.getElementById('donneSuivante').addEventListener('click',()=>{
-  var edit=[document.getElementById('score0').innerHTML,document.getElementById('score1').innerHTML];
+  var edit=[document.getElementById('score0').value,document.getElementById('score1').value];
   socket.emit('donneSuivante',edit);
   affichePage("mainpage");
 })
@@ -150,9 +150,9 @@ function MAJdata(data){
 function MAJscore(data){
 
   document.getElementById('equipe0').innerHTML=data.joueurs[0] + "<BR>" + data.joueurs[2];
-  document.getElementById('score0').innerHTML=data.scores[0];
+  document.getElementById('score0').value=data.scores[0];
   document.getElementById('equipe1').innerHTML=data.joueurs[1] + "<BR>" + data.joueurs[3];
-  document.getElementById('score1').innerHTML=data.scores[1];
+  document.getElementById('score1').value=data.scores[1];
 
   if (data.contrat){
     var buf;
