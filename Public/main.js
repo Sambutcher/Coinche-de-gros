@@ -153,6 +153,9 @@ function MAJscore(data){
   document.getElementById('score0').value=data.scores[0];
   document.getElementById('equipe1').innerHTML=data.joueurs[1] + "<BR>" + data.joueurs[3];
   document.getElementById('score1').value=data.scores[1];
+  const star="&#11088;"; //emoticone etoile
+  document.getElementById('etoiles0').innerHTML=star.repeat(data.etoiles[0]);
+  document.getElementById('etoiles1').innerHTML=star.repeat(data.etoiles[1]);
 
   if (data.contrat){
     var buf;

@@ -66,6 +66,7 @@ var MAJ={
     var data={
       'joueurs': g.joueurs.map(joueur=>(joueur && joueur.nom)),
       'scores': g.scores,
+      'etoiles': g.etoiles,
       'donneur': g.donneur,
       'preneur':(g.donne && g.donne.preneur),
       'contrat':(g.donne && g.donne.contrat),
@@ -100,7 +101,7 @@ var MAJ={
     var res;//pour comparer les data
     for (j=0;j<g.joueurs.length;j++){
       g.joueurs[j].socket.once(mess,(data)=>{
-        console.log(data);
+        console.log('onAll',j,data);
         if (i>=3){
           (res && data && res.toString()==data.toString())?res=data:res=null;
           fn(res);
@@ -210,9 +211,12 @@ function Game(){
         if (g.tour==32){
           g.tour=0;
           g.donne.pli=Array(4);
-          resultat=g.donne.MAJcomptes();
+          var resultat=g.donne.MAJcomptes();
           g.scores[0]+=resultat[0];
           g.scores[1]+=resultat[1];
+          var etoile=g.donne.isEtoile();
+          g.etoiles[0]+=etoile[0];
+          g.etoiles[1]+=etoile[1];
           g.joueuractif=null;
           g.phases.findedonne(g);
         } else {
@@ -232,7 +236,7 @@ function Game(){
           g.scores[1]=parseInt(score[1]);
         };
 
-        //debug console.log(g);
+        console.log(g);
         g.donneur=(g.donneur+1)%4;
         g.joueuractif=(g.donneur+1)%4;
         if (g.scores[0]>=1000 || g.scores[1]>=1000) {g.scores=[0,0]};
@@ -252,6 +256,7 @@ function Game(){
   this.donne;
   this.donneur=0;
   this.scores=[0,0];
+  this.etoiles=[0,0];
   this.paquet=new Paquet();
   this.joueurs=Array(4);
   this.lastJoueurs=Array(4);//archive du joueur en cas de déconnection
@@ -401,6 +406,39 @@ function Donne(donneur){
       return res;
   }
 
+  //chercher si il y a une etoile et renvoi [n,m]
+  function isEtoile(){
+    var res=[0,0];
+    //on cherche la générale non annoncée
+    for (let i=0;i<4;i++){
+      if (this.plis[i].length==32){//le joueur i a || le joueur i  a fait une générale
+        if (this.contrat.valeur!='Générale' || this.preneur!=i){//le joueur i n'a pas annoncé une générale ou n'est pas le preneur
+            res[i%2]=1;
+        }
+      }
+    }
+
+    //on cherche le capot non annoncé de l'équipe 0
+    if (this.plis[0].length +this.plis[2].length==32){//l'équipe 0 a fait un capot
+      if ((this.contrat.valeur!='Générale' && this.contrat.valeur!='Capot')){//le contrat n'est ni une générale ni un capot
+          res[0]=1;
+        } else if (this.preneur==1 || this.preneur==3){//le preneur n'est pas 0 ni 2
+          res[0]=1;
+        }
+    }
+
+    //on cherche le capot non annoncé de l'équipe 1
+    if (this.plis[1].length +this.plis[3].length==32){//l'équipe 0 a fait un capot
+      if ((this.contrat.valeur!='Générale' && this.contrat.valeur!='Capot')){//le contrat n'est ni une générale ni un capot
+          res[1]=1;
+        } else if (this.preneur==0 || this.preneur==2){//le preneur n'est pas 0 ni 2
+          res[1]=1;
+        }
+    }
+
+    return res;
+  }
+
   //met à jour points faits et retourne points à marquer (à mettre dans score)
   function MAJcomptes(){
     //Calcul du compte des plis des attaquants
@@ -449,6 +487,8 @@ function Donne(donneur){
   this.isBelote=isBelote;
   this.compte=compte;
   this.MAJcomptes=MAJcomptes;
+  this.isEtoile=isEtoile;
+
 
   //Définitions des variables
   this.pli=Array(4);//Pli en cours
