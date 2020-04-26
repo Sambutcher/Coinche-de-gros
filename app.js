@@ -34,7 +34,7 @@ io.on('connection',socket=>{
     }
   }
 
-  reconnect();
+  //reconnect();
 
   //Login
   MAJ.data(game);
@@ -173,7 +173,8 @@ function Game(){
       g.joueurs.map(joueur=>joueur.socket.removeAllListeners());
       g.joueurs[g.donne.preneur].socket.once('Jedonnelecontrat',contrat=>{
         g.donne.contrat=contrat;
-        g.joueuractif=(g.donne.contrat.valeur=='Générale' ? g.donne.preneur : (g.donneur+1)%4)
+        g.joueuractif=(g.donne.contrat.valeur=='Générale' ? g.donne.preneur : (g.donneur+1)%4);
+        g.donne.ramasseur=(g.donne.contrat.valeur=='Générale' ? g.donne.preneur : (g.donneur+1)%4);
         g.donne.isBelote();
         g.phases.jouerpli(g);
       })
@@ -484,9 +485,9 @@ function Donne(donneur){
   //définition des fonctions
   this.distribuer = distribuer;
   this.ramassepli = ramassepli;//prend un tableau avec les 4 indices des cartes jouées
-  this.isBelote=isBelote;
-  this.compte=compte;
-  this.MAJcomptes=MAJcomptes;
+  this.isBelote = isBelote;
+  this.compte = compte;
+  this.MAJcomptes =MAJcomptes;
   this.isEtoile=isEtoile;
 
 
