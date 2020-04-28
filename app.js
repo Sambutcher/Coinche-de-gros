@@ -17,16 +17,20 @@ app.use(express.static(__dirname + '/Public')); //sert les fichiers clients dans
 http.listen(process.env.PORT || 3000);
 
 var game=new Game();
+var nbjoueurs=0;
 
 //connections et déconnections
 io.on('connection',socket=>{
 
+  if (nbjoueurs>=4){socket.close()};  
+    
   function reconnect(){
     if (game.joueurs){
       var id=cookie.parse(socket.handshake.headers.cookie)['connect.sid'];
       var no=game.lastJoueurs.map(joueur=>(joueur && joueur.cookie)).indexOf(id);
        if (no!=-1 && game.joueurs[no]==undefined){
          game.joueurs[no]=new Joueur(game.lastJoueurs[no].nom,socket);
+         nbjoueurs++;
          MAJ.mains(game,no);
          (game.phase?game.phase(game):null);
        }
@@ -34,11 +38,12 @@ io.on('connection',socket=>{
     }
   }
 
-  //reconnect();
+  reconnect();
 
   //Login
   MAJ.data(game);
   socket.once('add user',(nomjoueur,no)=>{
+    nbjoueurs++;
     game.joueurs[no]=new Joueur(nomjoueur,socket);
     MAJ.data(game);
     if (! game.joueurs.includes(undefined)){
@@ -53,6 +58,7 @@ io.on('connection',socket=>{
     var nojoueur=game.joueurs.map(joueur=>(joueur && joueur.cookie)).indexOf(id);
     if (nojoueur != (-1)){
       game.lastJoueurs[nojoueur]=game.joueurs[nojoueur];
+      nbjoueurs--;
       game.joueurs[nojoueur]=undefined;
       MAJ.data(game);
     };
