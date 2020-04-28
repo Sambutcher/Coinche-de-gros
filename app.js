@@ -20,8 +20,7 @@ var game=new Game();
 
 //connections et déconnections
 io.on('connection',socket=>{
-
-  if (nbjoueurs>=4){socket.close()};  
+ 
     
   function reconnect(){
     if (game.joueurs){
